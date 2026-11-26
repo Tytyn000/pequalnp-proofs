@@ -333,6 +333,9 @@ if(cmd==='relaxed-control'){
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
   if(depthEquality&&(deepEdgeCount!==3||s!==43||process.env.AFFINE_EDIT_BASE))
     throw Error('Depth equality needs exactly three deep edges at 43 gates without fixed edit distance');
+  const deepLinePattern=process.env.AFFINE_DEEP_LINE_PATTERN;
+  if(deepLinePattern&&(!depthEquality||!['two-plus-one','distinct'].includes(deepLinePattern)))
+    throw Error('Deep line pattern needs the equality case and two-plus-one or distinct');
   if(deepEdgeCount){
     if(![2,3].includes(deepEdgeCount))throw Error('Expected two or three deep edge witnesses');
     if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
@@ -405,6 +408,33 @@ if(cmd==='relaxed-control'){
       }
       one(inner);
       add(-counts[12]);
+      if(deepLinePattern){
+        const lineChoices=chosen.map(selection=>{
+          const choices=lines.map(v);
+          for(const [i,[,line]] of edges.entries())add(-selection[i],choices[line-half]);
+          one(choices);
+          return choices;
+        });
+        for(let a=0;a<lines.length;a++)for(let b=0;b<lines.length;b++)for(let c=0;c<lines.length;c++){
+          const distinctLines=new Set([a,b,c]).size;
+          if(distinctLines!==(deepLinePattern==='distinct'?3:2))
+            add(-lineChoices[0][a],-lineChoices[1][b],-lineChoices[2][c]);
+        }
+        // At most one line lacks an exposed AND with that input wired directly.
+        const rawLineReaders=lines.map((_,i)=>{
+          const line=half+i, witnessed=v();
+          const readers=gates.map((g,j)=>{
+            const reader=v();
+            add(-reader,g.type);add(-reader,exposed[j]);
+            add(-reader,g.a[line],g.b[line]);
+            return reader;
+          });
+          add(-witnessed,...readers);
+          return witnessed;
+        });
+        for(let i=0;i<rawLineReaders.length;i++)for(let j=0;j<i;j++)
+          add(rawLineReaders[i],rawLineReaders[j]);
+      }
     }
   }
   if(process.env.AFFINE_EDIT_BASE){

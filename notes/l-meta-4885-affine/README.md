@@ -50,3 +50,40 @@ kissat --time=75 affine43-egalite-profondeur.cnf
 ```
 
 Les commandes `kissat` utilisent les CNF générés juste au-dessus. Les candidats locaux à 43 portes sont les points de départ des recherches par distance de réécriture. Ils ont respectivement une et deux arêtes minimales manquantes.
+
+## Répartition des trois arêtes profondes
+
+Dans le cas d’égalité (43 portes et m = 33), les trois arêtes rejetées par l’évaluation limitée se répartissent sur au moins deux droites. Les neuf centres productifs sont alors les neuf droites.
+
+Soit U l’ensemble des portes déjà comptées dans la borne m + t − 1. Il contient les ET productifs, les OU exposés et les OU traversés dans les disjonctions de voisins. On a |U| ≥ 41. L’unique ET non exposé G est hors de U. Il reste donc au plus une autre porte hors de U dans le cône de sortie.
+
+Supposons que les trois arêtes profondes relient une même droite L à trois points distincts Q. Aucun point de Q n’est centre. En effet, s’il existe un centre point p, il n’y en a qu’un, et il y a exactement une droite sans centre. Au moins trois arêtes de cette droite sont profondes, puisque seul p peut y fournir une arête par un ET productif. Cette droite est donc L, et sa quatrième arête, celle qui la relie à p, est acceptée par l’évaluation limitée.
+
+**Le support de tout fil vivant contient au plus un point de Q.** C’est immédiat pour les entrées primaires, les ET et les OU exposés. Pour un OU de voisins compté dans U, un centre point n’a que des droites pour voisins. Un centre droite différent de L ne rencontre L qu’en un point au plus. Un OU de voisins centré sur L ne peut contenir aucun des points Q, puisque l’arête correspondante serait alors acceptée par l’évaluation limitée.
+
+Pour examiner une éventuelle porte restante hors de U et différente de G, reprenons le chemin jusqu’au premier ET exposé E vrai sur une arête profonde. Si E est non productif, c’est cette porte restante et son support est vide. Sinon, on remonte d’un opérande de E faux après remplacement des ET par zéro jusqu’à G en suivant uniquement des OU. Si tous ces OU sont comptés dans U, le terminal vide supplémentaire du comptage précédent donne |U| ≥ 42 et il ne reste aucune porte. S’il existe un OU hors de U sur ce chemin, il est unique et son support contient au plus un singleton. En effet, pour un opérande de centre, tous les supports en amont sur le chemin sont inclus dans le support singleton de cet opérande. Pour un opérande de voisins, le premier OU hors de U rencontré en remontant doit avoir un support de taille au plus un, puisque le parcours de comptage inclut tout OU de support de taille au moins deux tant qu’il ne s’est pas arrêté. Cela termine la preuve de la propriété des supports.
+
+Pour chaque arête entre L et un point q de Q, le premier ET vrai dans le cône de sortie est G. Chacun de ses deux opérandes est donc vrai sur cette arête même en forçant les ET précédents à zéro. Un support qui intersecte chacune des trois paires {L, q} et contient au plus un point de Q doit contenir L. Les deux supports contiennent donc L, et G est vrai sur le singleton L.
+
+Sur chaque paire {L, q}, considérons de nouveau le premier ET exposé E qui est vrai. Au moins un opérande de E est faux sur le singleton L, puisque E est exposé et que la sortie rejette ce singleton. Cet opérande est vrai sur la paire. En remontant à travers des OU, sa valeur vraie ne peut provenir ni de G ni de l’entrée L, qui sont tous deux vrais sur le singleton L. Elle ne peut provenir d’un ET exposé antérieur, qui est faux sur la paire. Elle provient donc de l’entrée q, et le support de cet opérande contient q.
+
+- Si E est non productif, il est la seule porte hors de U autre que G. Seul son opérande de support non vide peut fournir le point q. Il en fournit au plus un.
+- Si E est productif, son centre ne peut être L. Dans ce cas, son opérande de centre serait vrai sur le singleton L et l’autre opérande aurait q dans son support, ce qui ferait accepter l’arête par l’évaluation limitée. Comme son centre n’appartient pas non plus à Q, son opérande de centre vaut zéro après remplacement des ET par zéro sur la paire. Cet opérande est donc vrai par un chemin de OU depuis G. Il s’agit d’un OU de support singleton hors de U. Il est unique et ne peut servir d’opérande de centre à deux ET productifs, dont les centres sont distincts. Vrai sur le singleton L, il oblige l’opérande de voisins à fournir q. Cet opérande peut fournir au plus un point de Q.
+
+Ces deux possibilités utilisent chacune la seule place hors de U qui reste après avoir compté G. Elles sont incompatibles entre elles, et chacune permet au plus une arête profonde sur L, ce qui contredit l’hypothèse des trois arêtes.
+
+Si un centre était un point, les trois arêtes profondes seraient sur la droite sans centre, ce qui vient d’être exclu. Les neuf centres sont donc des droites. Au moins huit des neuf ET productifs lisent directement leur entrée de centre, car tout opérande de centre calculé est un OU de support singleton hors de U et il y a au plus une telle porte.
+
+### Recherches SAT séparées
+
+Les deux modes ci-dessous séparent les arêtes profondes selon qu’elles occupent deux ou trois droites. Chacun impose aussi qu’au moins huit entrées de droites alimentent directement des ET exposés.
+
+```sh
+for pattern in two-plus-one distinct; do
+  AFFINE_MIN_DEEP_EDGES=3 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_LINE_PATTERN="$pattern" \
+    node frontiere.cjs build "affine43-egalite-$pattern.cnf" 43 197 ordered
+  kissat --time=50 "affine43-egalite-$pattern.cnf"
+done
+```
+
+Les deux essais ont donné UNKNOWN après 50 secondes de calcul chacun. Ils couvrent le cas où exactement trois arêtes sont profondes. Les circuits qui en ont davantage ne sont pas soumis à cette partition.
