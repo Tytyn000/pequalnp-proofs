@@ -427,6 +427,9 @@ if(cmd==='relaxed-control'){
     throw Error('Excluding deep triples needs linear split and orbit selection');
   if(deepOrbit!==undefined&&(!depthEquality||![4,5].includes(deepEdgeCount)||deepLinePattern==='single'))
     throw Error('Deep orbits require exactly four or five edges without a fixed line');
+  const fiveWide=process.env.AFFINE_FIVE_WIDE==='1';
+  if(fiveWide&&(!fiveEquality||!compactDepth||!maxNine||deepOrbit===undefined))
+    throw Error('The five-edge wide case needs compact depth, the nine-term bound and orbits');
   const deepPartition=process.env.AFFINE_DEEP_PARTITION;
   if(deepPartition&&(!fiveEquality||deepOrbit===undefined))
     throw Error('A deep partition requires five-edge orbit selection');
@@ -485,7 +488,7 @@ if(cmd==='relaxed-control'){
       const allowed=representatives.filter((rep,i)=>
         (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')&&
         (!tightBridge||rep.tightBridge)&&(!excludeTriple||rep.pattern!=='3+1')&&
-        (!deepPartition||rep.pattern===deepPartition)
+        (!deepPartition||rep.pattern===deepPartition)&&(!fiveWide||Number(rep.pattern[0])<=2)
       );
       if(!allowed.length)throw Error('No orbit matches the deep-line pattern');
       const witnesses=allowed.map(({indices,pattern})=>{
@@ -578,8 +581,8 @@ if(cmd==='relaxed-control'){
         one(inner);
       }else{
         add(...inner);
-        atMost(inner,linearSplit?2:3);
-        if(linearSplit)for(const gate of inner.keys())add(...inner.filter((_,j)=>j!==gate));
+        atMost(inner,linearSplit||fiveWide?2:3);
+        if(linearSplit||fiveWide)for(const gate of inner.keys())add(...inner.filter((_,j)=>j!==gate));
       }
       atMost(gates.map(g=>g.type),tightAccounting||maxNine||fiveEquality?11:deepEdgeCount+8);
       if(deepLinePattern==='split'){
@@ -608,6 +611,17 @@ if(cmd==='relaxed-control'){
           }
           return flag;
         });
+        function centerWitnesses(vertex){
+          const centers=[];
+          for(const [j,flag] of productive.entries())for(let side=0;side<2;side++){
+            const center=v();
+            add(-center,flag);
+            for(const [input,operands] of singletonOperands.entries())
+              add(-center,input===vertex?operands[j][side]:-operands[j][side]);
+            centers.push(center);
+          }
+          return centers;
+        }
         if(tightDepth){
           atMost(productive.map(wire=>-wire),s-10);
           add(...pointCenters);
@@ -619,19 +633,9 @@ if(cmd==='relaxed-control'){
             atMost(productive.map(wire=>-wire),s-9,spread);
           }
           if(maxNine)atMost(productive,9);
+          if(fiveWide)for(let line=half;line<n;line++)add(...centerWitnesses(line));
         }else{
           atMost(productive,9);
-          function centerWitnesses(vertex){
-            const centers=[];
-            for(const [j,flag] of productive.entries())for(let side=0;side<2;side++){
-              const center=v();
-              add(-center,flag);
-              for(const [input,operands] of singletonOperands.entries())
-                add(-center,input===vertex?operands[j][side]:-operands[j][side]);
-              centers.push(center);
-            }
-            return centers;
-          }
           if(linearSplit)for(let line=half;line<n;line++)add(...centerWitnesses(line));
 
         }

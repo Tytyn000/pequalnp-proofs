@@ -466,3 +466,54 @@ kissat --time=80 affine43-cinq-neuf-productifs-all.cnf
 `AFFINE_DEEP_PARTITION=4+1` ou `AFFINE_DEEP_PARTITION=3+2` limite la recherche aux orbites de cette répartition. Avec les orbites activées, le générateur impose au moins neuf ET productifs pour chaque répartition autre que 4 + 1.
 
 Les trois premiers essais sur exactement cinq arêtes profondes ont rendu UNKNOWN après 85 secondes, avec toutes les orbites puis avec les seules répartitions 4 + 1 et 3 + 2. Les trois essais avec le plafond de neuf ET productifs ont donné le même verdict après 80 secondes. Le contrôle à 46 portes, exact et à cinq arêtes profondes, a été accepté. En scindant deux termes peu profonds, on obtient un témoin exact à 48 portes avec le même profil et dix ET productifs. Il a été accepté avec les plafonds relâchés, puis rejeté lorsque le seul plafond de neuf ET productifs a été rétabli.
+
+## Cinq arêtes profondes, au plus deux par droite
+
+Dans les répartitions 2 + 2 + 1, 2 + 1 + 1 + 1 et 1 + 1 + 1 + 1 + 1, les neuf ET productifs ont pour centres les neuf droites. Cette section montre qu’il y a **exactement deux ET internes et aucun ET exposé non productif**. Il y a donc onze ET au total dans ces 909 orbites.
+
+On a m = 31, t = 9 et t + h ≤ 11. Il suffit d’exclure h = 1. Notons G l’unique ET interne. L’ensemble U contient au moins 39 + u portes. Les supports des fils dans U sont vides ou constitués seulement de points. Les seuls supports de droites auxquels on peut accéder sans porte hors de U sont les entrées primaires, chacune avec un singleton. Pour chaque arête profonde, G est le premier ET vrai. Le premier ET exposé vrai E reçoit G par un chemin de OU sur au moins un opérande, faute de quoi l’arête serait peu profonde. L’autre opérande reçoit G ou l’une des deux entrées actives. Les ET exposés antérieurs sont faux sur cette paire.
+
+Si G est vrai sur le singleton q d’une arête profonde {q, L}, alors E reçoit L sur l’autre opérande. En effet, E est faux sur le singleton q. Son opérande qui y est faux ne peut recevoir ni G, ni q par un chemin de OU. Il reçoit donc L sur la paire. Par conséquent, pour toute droite L d’une telle arête, G avec L suffit à faire accepter la paire.
+
+### Aucune porte OU hors de U en amont de G
+
+Dans ce cas, les deux opérandes de G ont des supports faits de points. Un support singleton droite ne pourrait pas rencontrer les arêtes de plusieurs droites. Chaque support contient tous les points des arêtes profondes. G est vrai sur chacun de leurs singletons. Le circuit accepterait alors toutes les paires formées d’un point profond et d’une droite profonde, par l’observation sur E. Il y a au moins deux sommets de chaque part et ce graphe est sans C₄.
+
+### Un ET exposé non productif
+
+On a u ≤ 1 d’après la borne sur le nombre total de ET. Si u = 1 et qu’il y a au moins un OU hors de U en amont de G, le budget impose |U| = 40 et un seul tel OU S₁. Il ne reste aucune place pour un OU qui transmette G en aval en dehors de U. Un OU de U ne peut lire G directement, puisqu’il ajouterait un terminal vide au budget de ses voisins, déjà saturé. Aucun ET productif ne peut donc recevoir G sur une arête profonde. L’unique ET exposé non productif doit accepter les cinq arêtes profondes et lire directement G.
+
+Le support de S₁ contient au plus deux droites, puisqu’il ne peut réunir que deux signaux issus de U ou d’entrées primaires. On prend une arête profonde {q, L} dont la droite L est en dehors de ce support. Une telle arête existe car les cinq arêtes occupent au moins trois droites. Les opérandes de G doivent être vrais sur les cinq paires par leurs supports. Aucun ne peut être une entrée primaire droite, donc chacun est vrai sur le singleton q, qu’il provienne d’un support de points ou de S₁. De même le second opérande de l’ET exposé non productif est vrai sur le singleton q. S’il est G, cela vient de ce qu’on vient de montrer. Sinon son support doit rencontrer toutes les arêtes profondes et n’est pas le singleton d’une droite. Sur {q, L}, sa valeur vraie vient donc de q. Le singleton est accepté par l’ET exposé, ce qui est impossible.
+
+### Deux OU hors de U en amont de G
+
+On est désormais dans u = 0. Si deux portes hors de U sont en amont de G, au plus une troisième porte hors de U reste disponible en aval. Si |U| ≥ 40, G doit être transmis par les gardes comptées dans U. À cause du budget après les deux portes en amont et G, une seule garde de centre peut gagner un terminal vide. Un seul centre ne couvre pas les cinq arêtes profondes. On a donc |U| = 39, avec un unique OU S en aval de G qui transmet G aux ET productifs. Tous les chemins de OU utiles doivent passer par S, qui a un support singleton. Un support plus grand ferait compter S dans U. Un support vide ajouterait un terminal vide dans un parcours des voisins.
+
+Ce singleton impose à G d’être faux sur tous les singletons profonds des deux parts. Si S a pour support un point p, il alimente les gardes des centres droites, donc toutes les droites profondes contiennent p, qui est distinct de leurs points profonds. Sur toutes les paires, G vrai avec une droite profonde suffit à faire accepter la paire. G est donc faux sur le singleton de chaque droite profonde. G doit aussi être faux sur le singleton de chaque point profond, car ce point n’est incident qu’à une des droites profondes. Si S a pour support une droite A, il alimente un opérande de centre A et les points des arêtes profondes sont sur A. Leurs propres droites sont différentes de A, car le support de voisins du terme centré sur A donne des arêtes peu profondes sur A. L’argument précédent s’applique en échangeant les points et les droites.
+
+Évalué sur les arêtes profondes ou sur leurs singletons, G est la conjonction de ses supports d’opérandes. Si les deux supports sont homogènes, chacun contient tous les sommets profonds de sa part. Leur conjonction est vraie sur toutes les paires entre points et droites profonds, ce qui est interdit avec le seul signal de transmission S. Supposons donc qu’il y ait un support mixte parmi les deux. Aucun opérande de G ne peut alors contenir seulement des droites. Il lui faudrait au moins trois droites, ce qui demanderait déjà les deux OU hors de U pour réunir trois entrées primaires droites, sans produire de support mixte. Les deux supports d’opérandes de G contiennent ensemble au plus deux droites. En effet, avec deux OU supplémentaires on peut joindre un support de points à deux entrées droites, ou créer deux supports mixtes comportant une droite chacun. Sur une arête profonde {q, L} où L n’est dans aucun des deux supports, G est donc vrai sur le singleton q. Cela contredit la contrainte imposée par S.
+
+### Un seul OU hors de U en amont de G, sans ET exposé non productif
+
+Soit S₁ cet OU. Il ne peut y avoir en amont un support fait uniquement de droites et contenant les au moins trois droites profondes. Si G n’a aucun opérande de support mixte, ses deux supports contiennent donc tous les points profonds, et le cas sans OU en amont a déjà donné la contradiction. Un support mixte, celui de S₁, contient des points et une unique droite L₀.
+
+Soient Q' et R' les ensembles de points et de droites des arêtes profondes hors de L₀. Sur ces arêtes, les deux opérandes de G doivent être vrais grâce à q, donc G est vrai sur chaque singleton de Q'. Comme E doit recevoir la valeur de sa droite sur l’opérande qui ne reçoit pas G, le circuit accepterait toutes les paires Q' × R'. On a |R'| ≥ 2. L’absence de C₄ donne Q' = {p} pour un certain point p. Comme chaque droite porte au plus deux arêtes profondes, au moins trois arêtes sont hors de L₀. Elles sont toutes incidentes à p, qui est de degré trois, donc il y en a exactement trois, sur trois droites distinctes. Les deux autres arêtes profondes sont sur L₀.
+
+Si un seul opérande de G est S₁, l’autre provient d’une entrée primaire ou d’un garde compté de centre droite. Son support de points devrait contenir les deux points profonds de L₀. Une telle garde ne peut contenir deux points de L₀ que si son centre est L₀, auquel cas ces deux arêtes seraient peu profondes. L’entrée primaire seule ne peut pas non plus fournir les deux points.
+
+Il reste le cas où les deux opérandes de G sont S₁. G est alors vrai sur le singleton L₀. Sur chacune des deux arêtes profondes de L₀, E doit obtenir son point q d’un opérande faux sur le singleton L₀, et G via l’autre. Un terme centré sur L₀ ne convient pas. L’opérande de centre y serait vrai sur le singleton L₀, et l’obligation de recevoir q dans le support de voisins rendrait l’arête peu profonde. Il faut donc deux centres calculés de support singleton droite, distincts puisque deux points de L₀ ne peuvent pas être voisins d’une même autre droite. Ces deux OU épuisent les portes disponibles. Ainsi |U| = 39 et aucun OU de U ne peut lire G directement, car ce serait un terminal vide supplémentaire.
+
+Considérons maintenant une arête profonde hors de L₀. Son point est p et G est vrai sur le singleton p. Le premier E doit donc recevoir son entrée droite sur un opérande et G sur l’autre. Comme les centres sont tous des droites, il doit recevoir G dans la garde constituée de points. Ni les OU comptés dans U ni les deux OU de centre de support droite ne peuvent lui transmettre G. Cette dernière possibilité est exclue.
+
+Ainsi h = 2. Le nombre total de ET étant au plus onze, les neuf ET productifs et ces deux ET internes utilisent tout ce budget.
+
+```sh
+AFFINE_COMPACT_ROWS=1 AFFINE_COMPACT_DEPTH=1 AFFINE_MIN_DEEP_EDGES=5 AFFINE_DEPTH_EQUALITY=1 \
+  AFFINE_DEPTH_MAX_NINE=1 AFFINE_DEEP_ORBIT=all AFFINE_FIVE_WIDE=1 \
+  node frontiere.cjs build affine43-cinq-deux-internes-all.cnf 43 197 ordered
+kissat --time=85 affine43-cinq-deux-internes-all.cnf
+```
+
+L’option `AFFINE_FIVE_WIDE=1` sélectionne les orbites où chaque droite porte au plus deux arêtes profondes. Elle impose deux ET internes et un ET productif centré sur chacune des neuf droites. On peut la combiner avec `AFFINE_DEEP_PARTITION` pour cibler une répartition.
+
+Les trois essais ont donné UNKNOWN avec une limite de 85 secondes chacun. Ils couvrent l’ensemble des 909 orbites, puis séparément les répartitions sur trois et cinq droites. Pour le contrôle, un circuit exact à 48 portes a été construit avec un ET interne commun à trois arêtes autour d’un point et un autre ET interne pour deux arêtes sur une quatrième droite. Après renumérotation sur son orbite, il a été accepté. En recopiant un ET interne, on obtient un circuit exact à 49 portes avec le même profil d’arêtes, mais trois ET internes. Il a été rejeté même en relâchant les plafonds du nombre total de ET et de t + h.
