@@ -1,6 +1,6 @@
 # L-meta-4885 · Sous-problème affine
 
-La [réduction étudiée dans la PR nº 10128](https://github.com/open-goat/pequalnp-proofs/pull/10128) conduit à la fonction d’incidence du plan affine d’ordre 3. Le sous-problème porte sur 21 entrées, 36 incidences et des portes ET et OU binaires. Le meilleur circuit exact connu ici a 44 portes. L’existence d’un circuit exact à 43 portes reste ouverte. Un tel circuit devrait avoir au moins cinq arêtes qui nécessitent deux ET sur un même chemin.
+La [réduction étudiée dans la PR nº 10128](https://github.com/open-goat/pequalnp-proofs/pull/10128) conduit à la fonction d’incidence du plan affine d’ordre 3. Le sous-problème porte sur 21 entrées, 36 incidences et des portes ET et OU binaires. Le meilleur circuit exact connu ici a 44 portes. L’existence d’un circuit exact à 43 portes reste ouverte. Un tel circuit devrait avoir au moins six arêtes qui nécessitent deux ET sur un même chemin.
 
 La fonction est vraie si les entrées actives contiennent une arête d’incidence. Pour vérifier un circuit monotone, il suffit donc de vérifier les 36 arêtes minimales et les 197 ensembles indépendants maximaux. Le script `verifier-temoin.cjs` vérifie aussi le témoin à 44 portes sur les 2 097 152 entrées sans utiliser cette réduction.
 
@@ -521,3 +521,7 @@ Les trois essais ont donné UNKNOWN avec une limite de 85 secondes chacun. Ils c
 ## Exclusion certifiée de neuf centres droites
 
 Une [projection SAT et ses certificats vérifiés](PROJECTION_CINQ.md) excluent les 909 orbites de cinq arêtes profondes où chaque droite porte au plus deux de ces arêtes. Elle exclut aussi les neuf centres droites pour les répartitions 3 + 2 et 3 + 1 + 1. Il reste 55 orbites pour exactement cinq arêtes profondes. Les 53 orbites de types 3 + 2 et 3 + 1 + 1 exigent au moins un centre point. Le cas à 43 portes reste ouvert.
+
+## Au moins six arêtes profondes
+
+La [projection SAT étendue](PROJECTION_CINQ.md) couvre les 55 dernières orbites de cinq arêtes profondes, y compris les centres points et les centres répétés. Les 18 nouvelles formules sont insatisfiables et chacune a un certificat DRAT vérifié. Avec les exclusions antérieures, **un circuit affine exact à 43 portes doit avoir au moins six arêtes profondes parmi les 36**. Le premier essai SAT avec cette borne a donné UNKNOWN après 75 secondes. Le circuit exact à 44 portes reste le meilleur témoin disponible.

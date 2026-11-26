@@ -1,8 +1,8 @@
-# Projection SAT pour cinq arêtes profondes et neuf centres droites
+# Exclusion certifiée des circuits à exactement cinq arêtes profondes
 
-Les certificats DRAT excluent les **909 orbites** où chaque droite porte au plus deux des cinq arêtes profondes. D’autres certificats utilisant la même projection excluent aussi tous les circuits qui auraient exactement cinq arêtes profondes et les neuf droites pour centres.
+Les **964 orbites** de circuits à exactement cinq arêtes profondes sont exclues à 43 portes. La première projection couvre les neuf centres droites. Son extension aux centres points et aux centres répétés couvre les 55 orbites qui restaient, à l’aide de dix-huit nouveaux certificats DRAT vérifiés.
 
-À 43 portes, il reste deux orbites de type 4 + 1, ainsi que les 53 orbites des types 3 + 2 et 3 + 1 + 1 avec au moins un centre point. Ces 55 orbites ne sont pas déclarées réalisables. Un circuit à 43 portes peut aussi avoir plus de cinq arêtes profondes.
+La borne précédente excluait déjà quatre arêtes profondes ou moins. Tout circuit exact à 43 portes doit donc avoir **au moins six arêtes profondes**.
 
 ## Pourquoi la projection suffit pour l’exclusion
 
@@ -59,3 +59,70 @@ Pour établir les [verdicts par orbite](verdicts-projection-cinq.tsv), on peut l
 python3 verifier-projection-cinq.py /chemin/kissat --jobs 8 --time 12 \
   --checker /chemin/drat-trim --certify 1,2,11,21,31,45
 ```
+
+## Extension aux centres points et aux centres répétés
+
+Le même modèle représente maintenant tous les circuits candidats dans les 55 dernières orbites. Chaque terme productif a un support singleton pour centre. On choisit un centre pour chaque terme dont les deux supports sont singletons. Un terme est actif si son centre et sa garde sont sélectionnés, et sa garde doit contenir au moins une incidence peu profonde. Chaque incidence peu profonde doit appartenir à au moins une garde. Deux gardes peuvent couvrir la même incidence.
+
+Pour un centre x, on aplatit les OU de toutes ses gardes, en partant de leurs tₓ racines. Si kₓ voisins distincts et eₓ terminaux projetés distincts de support vide sont atteints, le parcours rencontre au moins kₓ + eₓ terminaux. Avec qₓ OU visités et au plus tₓ racines, il rencontre au plus 2qₓ + tₓ fils au total. On a donc qₓ ≥ kₓ + eₓ − tₓ. Tout OU de support d’au moins deux appartient au plus à un centre. En effet, deux centres de la même part ne peuvent partager deux voisins, et les voisins de centres dans des parts opposées appartiennent à des parts distinctes. Comme la somme des kₓ est au moins 31, on obtient au moins 31 − t + Σₓ eₓ OU de gardes pour t termes productifs.
+
+Le circuit comporte t ET productifs, h ET internes, u ET exposés non productifs et au moins t + u − 1 OU exposés. En ajoutant le nombre a d’OU projetés, on obtient le budget
+
+```text
+a + Σₓ eₓ ≤ 43 − (31 + t + h + 2u − 1) = 13 − t − h − 2u.
+```
+
+Un même terminal de support vide utilisé dans deux gardes du même centre n’est compté qu’une fois. Une garde singleton peut être représentée par son fil racine projeté, ou directement par l’entrée du voisin si c’est une entrée primaire. Dans ce cas l’aplatissement ne force aucun terminal vide en plus. Pour un opérande qui lit un OU de garde d’un centre point, les entrées possibles sont les droites peu profondes de ce centre, par le même argument de projection que pour un centre droite. Les ensembles d’incidences vérifiés sont exactement les mêmes.
+
+Les cas de figure à couvrir se déduisent du comptage antérieur.
+
+| Répartition | Mode | Termes productifs | Couples (h, u) |
+| --- | --- | ---: | --- |
+| 3 + 2 ou 3 + 1 + 1 | `mixed` | 9, tous de centres distincts, dont au moins un point | (1, 0), (2, 0), (1, 1) |
+| 4 + 1 | `mixed` | 9, tous de centres distincts, dont au moins un point | (1, 0), (2, 0), (1, 1) |
+| 4 + 1 | `repeat` | 9, avec un centre répété parmi huit droites | (1, 0), (2, 0), (1, 1) |
+| 4 + 1 | `eight` | 8, sur huit droites distinctes | (1, 0), (2, 0), (3, 0), (1, 1), (2, 1), (1, 2) |
+
+Avec neuf centres distincts, un centre point est obligatoire dans le type 4 + 1 car une droite n’a aucune incidence peu profonde. Au plus deux centres sont des points, par le comptage des paires de points du README. Les huit-centres possibles sont toujours huit droites. Les couples du tableau sont exactement ceux qui satisfont h ≥ 1, t + h ≤ 11, t + h + u ≤ 11 et t + h + 2u ≤ 13. Le fichier de vérification donne une formule commune par ligne de répartition, mode et couple.
+
+```sh
+node frontiere.cjs five-deep-orbits > orbites-cinq.json
+node projection-cinq.cjs orbites-cinq.json 3+2 projection-mixte.cnf 2 2 0 mixed
+kissat --time=115 projection-mixte.cnf projection-mixte.drat
+drat-trim projection-mixte.cnf projection-mixte.drat
+```
+
+Le contrôle à budget relâché fixe le représentant 475. Un ET interne calcule l’étoile entière de la droite sans terme productif. Un ET exposé non productif recopie ce signal. Le second ET interne fournit la cinquième incidence profonde à la garde de l’autre droite. Le câblage utilise trois OU projetés et un terminal vide. Il a donné SAT dans chacun des modes `mixed`, `repeat` et `eight` avec ce budget de quatre. Les dix anciennes formules du registre ont également été régénérées et leurs empreintes CNF sont inchangées.
+
+Pour reproduire les nouvelles formules du registre dans un dossier temporaire, avec `kissat` et `drat-trim` dans le PATH :
+
+```sh
+set -eu
+work=$(mktemp -d)
+node frontiere.cjs five-deep-orbits > "$work/orbites.json"
+tail -n +2 certificats-projection-cinq-restants.tsv |
+while IFS="$(printf '\t')" read -r pattern mode count budget h u vars clauses verdict verified formula_hash proof_hash; do
+  case_name="$pattern-$mode-$h-$u"
+  cnf="$work/$case_name.cnf"
+  proof="$work/$case_name.drat"
+  node projection-cinq.cjs "$work/orbites.json" "$pattern" "$cnf" "$budget" "$h" "$u" "$mode"
+  printf '%s  %s\n' "$formula_hash" "$cnf" | sha256sum -c -
+  status=0
+  kissat "$cnf" "$proof" > "$work/$case_name.out" || status=$?
+  test "$status" -eq 20
+  drat-trim "$cnf" "$proof" > "$work/$case_name.check"
+  tr '\r' '\n' < "$work/$case_name.check" | grep '^s VERIFIED$'
+done
+```
+
+L’empreinte du CNF permet de vérifier que la formule régénérée est celle du registre. Une autre trace DRAT est admissible si elle est vérifiée contre ce même CNF.
+
+## Recherche à partir de six arêtes profondes
+
+```sh
+AFFINE_COMPACT_ROWS=1 AFFINE_MIN_DEEP_EDGES=6 \
+  node frontiere.cjs build affine-43-six.cnf 43 197 ordered
+kissat --time=75 affine-43-six.cnf
+```
+
+La formule compte 1 026 999 clauses. Le solveur a atteint sa limite de temps et a donné UNKNOWN. L’existence d’un circuit exact à 43 portes reste ouverte.

@@ -441,7 +441,7 @@ if(cmd==='relaxed-control'){
     new Set(automorphisms().map(permutation=>permutation[half])).size!==lines.length))
     throw Error('Fixing the deep line requires transitivity on all lines');
   if(deepEdgeCount){
-    if(![2,3,4,5].includes(deepEdgeCount))throw Error('Expected two to five deep edge witnesses');
+    if(![2,3,4,5,6].includes(deepEdgeCount))throw Error('Expected two to six deep edge witnesses');
     if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
       throw Error('Depth condition needs the exact affine instance at at most 43 gates');
     function shallowAccepts(inputs){

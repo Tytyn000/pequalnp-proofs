@@ -11,7 +11,7 @@ const points = range(pointCount);
 const lines = range(lineCount);
 const inputs = range(inputCount);
 const patterns = ['2+2+1', '2+1+1+1', '1+1+1+1+1'];
-const additionalPatterns = ['3+2', '3+1+1'];
+const additionalPatterns = ['3+2', '3+1+1', '4+1'];
 
 function maximalNegatives() {
   const neighbors = points.map(point => edges.reduce((mask, [p, line]) =>
@@ -87,17 +87,21 @@ class Cnf {
   }
 }
 
-function build(representatives, budget, hidden, unproductive, symbolic) {
+function build(representatives, budget, hidden, unproductive, symbolic, mode) {
+  const mixed = mode !== 'lines';
+  const hasPoint = mode === 'mixed';
+  const repeated = mode === 'repeat';
+  const termCount = mode === 'eight' ? 8 : 9;
   assert.ok(representatives.length);
   assert.ok(Number.isInteger(budget) && budget >= 0);
-  assert.ok([1, 2].includes(hidden));
-  assert.ok([0, 1].includes(unproductive));
+  assert.ok([1, 2, 3].includes(hidden));
+  assert.ok([0, 1, 2].includes(unproductive));
   for (const { indices } of representatives) {
     assert.equal(indices.length, 5);
     assert.equal(new Set(indices).size, 5);
     assert.ok(indices.every(i => Number.isInteger(i) && i >= 0 && i < edges.length));
     const affectedLines = lines.map(line => indices.filter(i => edges[i][1] === pointCount + line));
-    assert.ok(affectedLines.every(group => group.length <= 3));
+    assert.ok(affectedLines.every(group => group.length <= (mixed ? 4 : 3)));
   }
 
   const cnf = new Cnf();
@@ -108,12 +112,46 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
     const choices = representatives.map(({ indices }) => cnf.and(indices.map(i => isDeep[i])));
     cnf.add(...choices);
   }
-  const shallowFlags = lines.map(line => points.map(point => {
-    const i = edges.findIndex(([q, l]) => q === point && l === pointCount + line);
-    return i === -1 ? -1 : -isDeep[i];
+  const vertices = repeated ? range(inputCount + lineCount) : mixed ? inputs : lines;
+  const members = mixed ? inputs : points;
+  const vertexOf = center => center >= inputCount ? center - lineCount : mixed ? center : pointCount + center;
+  const centerActive = vertices.map(() => mixed ? cnf.fresh() : 1);
+  if (mixed) {
+    cnf.atMost(centerActive, termCount);
+    cnf.atMost(centerActive.map(flag => -flag), vertices.length - termCount);
+    if (hasPoint) {
+      cnf.add(...centerActive.slice(0, pointCount));
+      cnf.atMost(centerActive.slice(0, pointCount), 2);
+    } else {
+      for (const flag of centerActive.slice(0, pointCount)) cnf.add(-flag);
+    }
+    if (repeated) {
+      cnf.one(centerActive.slice(inputCount));
+      for (const center of vertices.slice(inputCount)) {
+        cnf.add(-centerActive[center], centerActive[vertexOf(center)]);
+      }
+    }
+  }
+  const shallowFlags = vertices.map(center => members.map(neighbor => {
+    const vertex = vertexOf(center);
+    const i = edges.findIndex(([q, l]) => (q === vertex && l === neighbor) ||
+      (l === vertex && q === neighbor));
+    if (i === -1) return -1;
+    if (!mixed) return -isDeep[i];
+    const member = cnf.fresh();
+    cnf.add(-member, -isDeep[i]);
+    cnf.add(-member, centerActive[center]);
+    return member;
   }));
-  const shallow = shallowFlags.map(row => points.filter(point => row[point] !== -1));
-  const slots = range(4).map(() => ({ isAnd: cnf.fresh(), isExtraOr: cnf.fresh() }));
+  if (mixed) {
+    for (const [i, [point, line]] of edges.entries()) {
+      cnf.add(isDeep[i], shallowFlags[point][line], shallowFlags[line][point],
+        repeated ? shallowFlags[line + lineCount][point] : -1);
+    }
+    for (const [center, flag] of centerActive.entries()) cnf.add(-flag, ...shallowFlags[center]);
+  }
+  const shallow = shallowFlags.map(row => members.filter(neighbor => row[neighbor] !== -1));
+  const slots = range(Math.max(4, hidden + budget)).map(() => ({ isAnd: cnf.fresh(), isExtraOr: cnf.fresh() }));
   const extraFlags = slots.map(slot => slot.isExtraOr);
   const andFlags = slots.map(slot => slot.isAnd);
   cnf.atMost(andFlags, hidden);
@@ -123,8 +161,8 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
     return cnf.or([isAnd, isExtraOr]);
   });
 
-  const guardUses = lines.map(() => slots.map(() => cnf.fresh()));
-  const centers = lines.map(() => {
+  const guardUses = vertices.map(() => slots.map(() => cnf.fresh()));
+  const centers = vertices.map(() => {
     const choices = range(slots.length + 1).map(() => cnf.fresh());
     cnf.one(choices);
     return choices;
@@ -132,14 +170,15 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
 
   function newOperand(slot) {
     const direct = range(1 + inputCount + slot).map(() => cnf.fresh());
-    const guardLine = lines.map(() => cnf.fresh());
+    const guardLine = vertices.map(() => cnf.fresh());
     cnf.one([...direct, ...guardLine]);
     const fromGuard = cnf.or(guardLine);
-    const member = points.map(() => cnf.fresh());
+    const member = members.map(() => cnf.fresh());
     const uses = range(slot).map(() => cnf.fresh());
     for (const flag of [...member, ...uses]) cnf.add(-flag, fromGuard);
     for (const [line, choice] of guardLine.entries()) {
-      for (const point of points) {
+      if (mixed) cnf.add(-choice, centerActive[line]);
+      for (const point of members) {
         cnf.add(-choice, -member[point], shallowFlags[line][point]);
       }
       for (const [j, use] of uses.entries()) cnf.add(-choice, -use, guardUses[line][j]);
@@ -148,7 +187,7 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
   }
 
   const operands = slots.map((_, slot) => [newOperand(slot), newOperand(slot)]);
-  const extraOperands = unproductive ? [newOperand(slots.length), newOperand(slots.length)] : [];
+  const extraOperands = range(unproductive).map(() => [newOperand(slots.length), newOperand(slots.length)]);
 
   function evaluateOperand(operand, primary, signals) {
     const candidates = [-1, ...primary, ...signals];
@@ -158,7 +197,7 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
       cnf.add(-choice, -result, value);
       cnf.add(-choice, result, -value);
     }
-    const hits = points.filter(point => primary[point] === 1)
+    const hits = members.filter(point => primary[point] === 1)
       .map(point => operand.member[point]);
     for (const [j, use] of operand.uses.entries()) hits.push(cnf.and([use, signals[j]]));
     cnf.add(-operand.fromGuard, -result, ...hits);
@@ -175,20 +214,21 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
       const actAnd = suppressAnd ? -1 : cnf.and([slot.isAnd, left, right]);
       signals.push(cnf.or([actOr, actAnd]));
     }
-    const extraValues = extraOperands.map(operand => evaluateOperand(operand, primary, signals));
+    const extraValues = extraOperands.map(pair => pair.map(operand => evaluateOperand(operand, primary, signals)));
     return { primary, signals, extraValues };
   }
 
   const singletonValues = inputs.map(i => evaluate(1 << i, true));
   const singletonRows = singletonValues.map(row => row.signals);
-  if (unproductive) {
-    cnf.add(...[0, 1].map(side => cnf.and(singletonValues.map(row => -row.extraValues[side]))));
+  for (const i of extraOperands.keys()) {
+    cnf.add(...[0, 1].map(side => cnf.and(singletonValues.map(row => -row.extraValues[i][side]))));
   }
   const empty = slots.map((_, slot) => cnf.and(singletonRows.map(row => -row[slot])));
   const charges = [...extraFlags];
   for (const [line, shallowPoints] of shallow.entries()) {
     for (const [slot, use] of guardUses[line].entries()) {
       cnf.add(-use, enabled[slot]);
+      if (mixed) cnf.add(-use, centerActive[line]);
       for (const vertex of inputs) {
         cnf.add(-use, -singletonRows[vertex][slot], shallowFlags[line][vertex] ?? -1);
       }
@@ -197,31 +237,37 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
           cnf.add(-use, -singletonRows[point][slot], -singletonRows[other][slot]);
         }
       }
-      charges.push(cnf.and([use, empty[slot]]));
+      if (!repeated) charges.push(cnf.and([use, empty[slot]]));
     }
     for (const [slot, choice] of centers[line].slice(1).entries()) {
       cnf.add(-choice, extraFlags[slot]);
+      if (mixed) cnf.add(-choice, centerActive[line]);
       for (const vertex of inputs) {
-        cnf.add(-choice, (vertex === pointCount + line ? 1 : -1) * singletonRows[vertex][slot]);
+        cnf.add(-choice, (vertex === vertexOf(line) ? 1 : -1) * singletonRows[vertex][slot]);
       }
     }
+  }
+  if (repeated) for (const vertex of inputs) for (const slot of slots.keys()) {
+    const use = vertices.filter(center => vertexOf(center) === vertex)
+      .map(center => guardUses[center][slot]);
+    charges.push(cnf.and([cnf.or(use), empty[slot]]));
   }
   cnf.atMost(charges, budget);
 
   function enforce(mask, expected) {
     const { primary, signals, extraValues } = evaluate(mask, false);
-    const lineTerms = lines.map(line => {
-      const alternatives = [primary[pointCount + line], ...signals];
+    const lineTerms = vertices.map(line => {
+      const alternatives = [primary[vertexOf(line)], ...signals];
       const center = cnf.or(centers[line].map((flag, i) => cnf.and([flag, alternatives[i]])));
       const guard = cnf.or([
         ...shallow[line].map(point => cnf.and([shallowFlags[line][point], primary[point]])),
         ...guardUses[line].map((flag, i) => cnf.and([flag, signals[i]])),
       ]);
-      if (!expected) cnf.add(-center, -guard);
-      return expected ? cnf.and([center, guard]) : -1;
+      if (!expected) cnf.add(-centerActive[line], -center, -guard);
+      return expected ? cnf.and([centerActive[line], center, guard]) : -1;
     });
-    if (unproductive && !expected) cnf.add(...extraValues.map(literal => -literal));
-    if (expected) cnf.add(...lineTerms, unproductive ? cnf.and(extraValues) : -1);
+    if (!expected) for (const pair of extraValues) cnf.add(...pair.map(literal => -literal));
+    if (expected) cnf.add(...lineTerms, ...extraValues.map(pair => cnf.and(pair)));
   }
   for (const i of symbolic ? range(edges.length) : fixed) {
     const [point, line] = edges[i];
@@ -229,13 +275,13 @@ function build(representatives, budget, hidden, unproductive, symbolic) {
   }
   for (const mask of maximalNegatives()) enforce(mask, false);
 
-  return { cnf, slots, guardUses, centers, operands, extraOperands };
+  return { cnf, slots, guardUses, centers, operands, extraOperands, centerActive, shallowFlags };
 }
 
-const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0'] = process.argv.slice(2);
+const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0', centerMode = 'lines'] = process.argv.slice(2);
 const symbolic = selection === 'all' || [...patterns, ...additionalPatterns].includes(selection);
 if (!filename || (!symbolic && !/^\d+$/.test(selection))) {
-  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND]');
+  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat]');
 }
 const { representatives } = JSON.parse(fs.readFileSync(catalog, 'utf8'));
 const allowed = symbolic
@@ -245,7 +291,12 @@ if (allowed.some(row => !row)) throw Error('Unknown orbit number');
 const budget = Number(budgetArg);
 const hidden = Number(hiddenArg);
 const unproductive = Number(unproductiveArg);
-const { cnf, ...mapping } = build(allowed, budget, hidden, unproductive, symbolic);
+assert.ok(['lines', 'mixed', 'eight', 'repeat'].includes(centerMode));
+const supported = centerMode === 'mixed' ? additionalPatterns : ['4+1'];
+if (centerMode !== 'lines' && !allowed.every(row => supported.includes(row.pattern))) {
+  throw Error('Unsupported representative for this center mode');
+}
+const { cnf, ...mapping } = build(allowed, budget, hidden, unproductive, symbolic, centerMode);
 cnf.write(filename);
 const orbit = symbolic ? { selection, count: allowed.length } : allowed[0];
 fs.writeFileSync(filename + '.map', JSON.stringify({ ...mapping, ...orbit, budget, hidden, unproductive }) + '\n');
