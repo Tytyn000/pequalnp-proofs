@@ -180,7 +180,8 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   function newOperand(slot) {
     const direct = range(1 + inputCount + slot).map(() => cnf.fresh());
     const guardLine = vertices.map(() => cnf.fresh());
-    cnf.one([...direct, ...guardLine]);
+    const choices = [...direct, ...guardLine];
+    cnf.one(choices);
     const fromGuard = cnf.or(guardLine);
     const member = members.map(() => cnf.fresh());
     const uses = range(slot).map(() => cnf.fresh());
@@ -192,10 +193,18 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
       }
       for (const [j, use] of uses.entries()) cnf.add(-choice, -use, guardUses[line][j]);
     }
-    return { direct, fromGuard, member, uses };
+    return { direct, fromGuard, member, uses, choices };
   }
 
   const operands = slots.map((_, slot) => [newOperand(slot), newOperand(slot)]);
+  if (process.env.AFFINE_PROJECTED_CANONICAL === '1') {
+    for (let i = 1; i < enabled.length; i++) cnf.add(-enabled[i], enabled[i - 1]);
+    for (const [left, right] of operands) {
+      for (const [i, choice] of left.choices.entries()) {
+        cnf.add(-choice, ...right.choices.slice(i));
+      }
+    }
+  }
   const extraOperands = range(unproductive).map(() => [newOperand(slots.length), newOperand(slots.length)]);
 
   function evaluateOperand(operand, primary, signals) {

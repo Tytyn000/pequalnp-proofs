@@ -618,3 +618,49 @@ Les options de projection, les limites, les numéros d’orbite et les empreinte
 Les deux formules groupées, avec exactement un OU projeté puis avec au moins deux, ont aussi donné UNSAT avec des traces DRAT vérifiées. Ces deux certificats et la preuve qui exclut zéro OU projeté forment une seconde vérification de l’exclusion des 58 orbites. La formule groupée initiale qui imposait seulement au moins un OU a atteint sa limite de temps.
 
 Le cas à 43 portes reste ouvert, notamment pour les autres répartitions et pour les circuits dont les centres diffèrent de ce sous-cas.
+
+### Un OU projeté est aussi nécessaire dans les répartitions restantes
+
+On garde les neuf centres droites, les deux ET internes G et H et le budget de trois. Sans OU projeté, chaque centre lit sa droite primaire et chaque droite profonde doit dépenser au moins une unité de budget pour un ET interne dans sa garde. Quatre droites profondes ou plus sont donc incompatibles avec zéro OU projeté.
+
+Dans la répartition 3 + 2 + 1, chacune des trois droites doit utiliser exactement un ET interne. Appelons G le premier selon l’ordre topologique. Avec zéro OU projeté, G a le même ensemble de points acceptés sur chaque droite ou vaut zéro en dehors d’une droite L. Si G est constant d’une droite à l’autre, H est lui aussi constant d’une droite à l’autre ou limité à une seule droite. Puisque le graphe n’a pas de cycle de longueur quatre, un signal constant pouvant servir deux droites contient au plus un point accepté. Deux ET internes ne peuvent alors servir trois droites dès lors que deux de ces droites ont plusieurs arêtes profondes.
+
+Si G est limité à L, le seul partage possible entre droites est celui de H. Si H ne lit pas directement d’entrée droite, ses profils sur les droites autres que L sont identiques, et celui sur L les contient. S’il lit directement une entrée droite, il ne peut servir qu’une droite. Deux gardes distinctes sur des droites autres que L ne peuvent partager un profil identique avec plusieurs points. Elles ne peuvent pas non plus toutes les deux n’exiger qu’un point profond, car la répartition ne comporte qu’une droite de ce type. Le partage devrait donc impliquer L, alors que le troisième terme ne peut recevoir que G, qui ne sert aucune autre droite. Cela exclut zéro OU projeté.
+
+On peut donc lancer, pour chaque répartition restante dans ce sous-cas, deux recherches exhaustives dans la projection. La première impose un OU projeté, la seconde en impose au moins deux.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+AFFINE_PROJECTED_OR_MIN=1 AFFINE_PROJECTED_OR_MAX=1 \
+  node projection-cinq.cjs orbites-six.json 3+2+1 projection-321-un.cnf 3 2 0
+AFFINE_PROJECTED_OR_MIN=2 \
+  node projection-cinq.cjs orbites-six.json 3+2+1 projection-321-plusieurs.cnf 3 2 0
+```
+
+L’option facultative `AFFINE_PROJECTED_CANONICAL=1` place les emplacements désactivés à la fin et ordonne les deux catégories d’opérandes d’une porte projetée. Un emplacement désactivé vaut zéro. On peut remplacer toute lecture de cet emplacement par zéro puis déplacer les emplacements désactivés après les portes actives. L’ordre des catégories d’opérandes se fait ensuite par commutativité. Ces contraintes préservent la satisfiabilité de la projection.
+
+### Nombre de termes productifs et choix des centres
+
+Avec six arêtes profondes, il y a au plus dix ET productifs. En effet, t + h ≤ 12 et h ≥ 1 donnent t ≤ 11. Si t = 11, on aurait h = 1 et u = 0 puisque le nombre total de ET est au plus douze. Le niveau de budget est alors exactement celui de la preuve dans [Dix termes productifs sont impossibles](#dix-termes-productifs-sont-impossibles), pour cinq arêtes profondes. Cette preuve utilise m + t = 41, h = 1, u = 0, et un nombre d’arêtes profondes supérieur au degré maximal. Elle s’applique donc ici avec m = 30 et t = 11. En détail, les deux parts des sommets profonds ont encore chacune au moins deux éléments, un seul centre ne couvre encore pas toutes les arêtes profondes, et un seul sommet universel ne peut les couvrir non plus. Les contradictions par cycle de longueur quatre et par support de voisins peu profonds sont inchangées.
+
+Si le circuit a exactement neuf ET productifs et si la répartition est 2 + 2 + 1 + 1, 2 + 1 + 1 + 1 + 1 ou 1 + 1 + 1 + 1 + 1 + 1, ses centres sont nécessairement les neuf droites. En effet, le résultat sur huit centres impose au moins neuf centres distincts pour ces répartitions. Supposons que r d’entre eux soient des points. Les r droites sans centre portent au moins 4r − 6 arêtes peu profondes, fournies par ces points. Comme chaque point fournit au plus trois arêtes, on a r ≤ 6. Sur une droite qui contient d des points centres, il y a C(d, 2) paires parmi ces points. Les paires comptées sont disjointes d’une droite à l’autre. En utilisant C(d, 2) ≥ 2d − 3, il faut donc au moins 5r − 12 paires, parmi C(r, 2) possibles. Pour r = 4, 5 ou 6, c’est impossible.
+
+Si r = 3, l’égalité dans le comptage impose exactement six incidences peu profondes sur les trois droites sans centre. Comme chacune porte au plus deux arêtes profondes, il faut deux arêtes profondes sur chacune. Cela donne 2 + 2 + 2. Si r = 2, deux droites sans centre ne peuvent recevoir que trois incidences des deux points centres, sinon elles partageraient deux points. L’une doit donc porter au moins trois arêtes profondes. Si r = 1, la seule droite sans centre porte au moins trois arêtes profondes. Ces cas excluent tout centre point pour les trois répartitions annoncées.
+
+### Dix centres distincts pour six droites profondes
+
+Lorsque chaque arête profonde occupe une droite différente et que dix termes ont des centres distincts, le nombre r de centres points appartient à {1, 9, 10}. Cette contrainte est purement géométrique.
+
+Les r − 1 droites sans centre portent chacune au moins trois arêtes peu profondes, donc contiennent au moins trois points centres. Elles nécessitent au moins 3(r − 1) paires différentes de points centres parmi C(r, 2). Cela exclut r de 2 à 5. Pour r = 6, on aurait exactement trois points centres sur chacune des cinq droites sans centre et toutes les paires y apparaîtraient. Pour chaque point centre, ses cinq partenaires devraient alors être distribués en groupes de deux, ce qui est impossible. Le cas r = 0 est impossible avec dix centres distincts et neuf droites.
+
+Posons q = 12 − r, le nombre de points sans centre. Comme chacun de ces points est de degré trois, au moins 3q − 6 de leurs incidences doivent aboutir à une droite centre. Il y en a q − 2. Pour r = 7 ou 8, deux telles droites se partagent au plus un point. Par conséquent, un total d’incidences sur ces droites ne peut dépasser q + C(q − 2, 2). En effet, chaque occurrence répétée d’un point correspond à au moins une paire de droites le contenant. Pour q = 5 ou 4, cette borne est inférieure à 3q − 6. Pour r = 9, les trois points sans centre appartiennent tous à l’unique droite centre, puisqu’il faut au moins trois incidences de ce type. Pour r = 10, les deux points sans centre n’ont aucune droite en commun, faute de quoi cette droite aurait deux arêtes profondes.
+
+### Exclusion des neuf centres droites à six arêtes
+
+Les certificats par répartition excluent les 116 orbites 3 + 2 + 1, les 324 orbites 3 + 1 + 1 + 1, les 1 056 orbites 2 + 2 + 1 + 1, les 2 302 orbites 2 + 1 + 1 + 1 + 1 et les 864 orbites 1 + 1 + 1 + 1 + 1 + 1 dans le profil à deux ET internes et aucun ET exposé non productif. Avec les exclusions antérieures, cela ferme **les 4 724 orbites possibles avec neuf centres droites**. Les 16 autres orbites ont une droite sans incidence peu profonde, donc ne peuvent avoir les neuf droites pour centres.
+
+Pour les répartitions 2 + 2 + 1 + 1, 2 + 1 + 1 + 1 + 1 et 1 + 1 + 1 + 1 + 1 + 1, on en déduit qu’un circuit exact à 43 portes devrait avoir **exactement dix ET productifs**. Avec exactement une arête profonde par droite, ces dix termes doivent soit avoir neuf centres droites dont un répété, soit avoir dix centres distincts dont un, neuf ou dix points.
+
+Le [registre des formules et des traces](certificats-projection-six-repartitions.tsv) indique pour chaque essai la répartition, le nombre d’orbites, les bornes du nombre de OU projetés et les empreintes. Chaque formule utilise un budget de trois avec deux ET internes et aucun ET exposé non productif. Le contrôle à budget relâché de la répartition 3 + 3 reste satisfaisable avec l’option canonique, après échange des opérandes pour suivre l’ordre imposé. Les déclarations d’insatisfiabilité des cinq nouvelles répartitions couvrent les deux tranches du nombre de OU et ont chacune été soutenues par une trace DRAT vérifiée.
+
+Les onze certificats par répartition suffisent à cette exclusion. Le registre conserve aussi un essai global redondant sur la tranche à au moins deux OU projetés. Kissat y a rendu UNSAT, et son certificat est indiqué séparément s’il a été vérifié.
