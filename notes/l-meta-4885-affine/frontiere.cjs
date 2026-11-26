@@ -396,7 +396,14 @@ if(cmd==='relaxed-control'){
   const tightDisjoint=process.env.AFFINE_TIGHT_DISJOINT==='1';
   if(tightDisjoint&&(!tightAccounting||!compactDepth))
     throw Error('Disjoint terms need tight accounting and compact depth');
+  const linearSplit=process.env.AFFINE_LINEAR_SPLIT==='1';
+  if(linearSplit&&(!maxNine||!compactDepth||deepLinePattern!=='split'))
+    throw Error('Linear split needs compact depth, the nine-term bound and several deep lines');
+  const excludeTriple=process.env.AFFINE_EXCLUDE_DEEP_TRIPLE==='1';
   const deepOrbit=process.env.AFFINE_DEEP_ORBIT;
+
+  if(excludeTriple&&(!linearSplit||deepOrbit===undefined))
+    throw Error('Excluding deep triples needs linear split and orbit selection');
   if(deepOrbit!==undefined&&(!depthEquality||deepEdgeCount!==4||deepLinePattern==='single'))
     throw Error('Deep orbits require exactly four edges without a fixed line');
   const tightBridge=process.env.AFFINE_TIGHT_BRIDGE==='1';
@@ -407,7 +414,7 @@ if(cmd==='relaxed-control'){
     new Set(automorphisms().map(permutation=>permutation[half])).size!==lines.length))
     throw Error('Fixing the deep line requires transitivity on all lines');
   if(deepEdgeCount){
-    if(![2,3,4].includes(deepEdgeCount))throw Error('Expected two, three or four deep edge witnesses');
+    if(![2,3,4,5].includes(deepEdgeCount))throw Error('Expected two to five deep edge witnesses');
     if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
       throw Error('Depth condition needs the exact affine instance at at most 43 gates');
     function shallowAccepts(inputs){
@@ -452,7 +459,7 @@ if(cmd==='relaxed-control'){
         throw Error('Deep orbit must be all or a one-based representative number');
       const allowed=representatives.filter((rep,i)=>
         (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')&&
-        (!tightBridge||rep.tightBridge)
+        (!tightBridge||rep.tightBridge)&&(!excludeTriple||rep.pattern!=='3+1')
       );
       if(!allowed.length)throw Error('No orbit matches the deep-line pattern');
       const witnesses=allowed.map(({indices})=>{
@@ -544,7 +551,8 @@ if(cmd==='relaxed-control'){
         one(inner);
       }else{
         add(...inner);
-        atMost(inner,3);
+        atMost(inner,linearSplit?2:3);
+        if(linearSplit)for(const gate of inner.keys())add(...inner.filter((_,j)=>j!==gate));
       }
       atMost(gates.map(g=>g.type),tightAccounting||maxNine?11:deepEdgeCount+8);
       if(deepLinePattern==='split'){
@@ -578,6 +586,19 @@ if(cmd==='relaxed-control'){
           add(...pointCenters);
         }else{
           atMost(productive,9);
+          function centerWitnesses(vertex){
+            const centers=[];
+            for(const [j,flag] of productive.entries())for(let side=0;side<2;side++){
+              const center=v();
+              add(-center,flag);
+              for(const [input,operands] of singletonOperands.entries())
+                add(-center,input===vertex?operands[j][side]:-operands[j][side]);
+              centers.push(center);
+            }
+            return centers;
+          }
+          if(linearSplit)for(let line=half;line<n;line++)add(...centerWitnesses(line));
+
         }
       }
       if(deepLinePattern&&deepEdgeCount===3){

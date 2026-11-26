@@ -1,6 +1,6 @@
 # L-meta-4885 · Sous-problème affine
 
-La [réduction étudiée dans la PR nº 10128](https://github.com/open-goat/pequalnp-proofs/pull/10128) conduit à la fonction d’incidence du plan affine d’ordre 3. Le sous-problème porte sur 21 entrées, 36 incidences et des portes ET et OU binaires. Le meilleur circuit exact connu ici a 44 portes. L’existence d’un circuit exact à 43 portes reste ouverte.
+La [réduction étudiée dans la PR nº 10128](https://github.com/open-goat/pequalnp-proofs/pull/10128) conduit à la fonction d’incidence du plan affine d’ordre 3. Le sous-problème porte sur 21 entrées, 36 incidences et des portes ET et OU binaires. Le meilleur circuit exact connu ici a 44 portes. L’existence d’un circuit exact à 43 portes reste ouverte. Un tel circuit devrait avoir au moins cinq arêtes qui nécessitent deux ET sur un même chemin.
 
 La fonction est vraie si les entrées actives contiennent une arête d’incidence. Pour vérifier un circuit monotone, il suffit donc de vérifier les 36 arêtes minimales et les 197 ensembles indépendants maximaux. Le script `verifier-temoin.cjs` vérifie aussi le témoin à 44 portes sur les 2 097 152 entrées sans utiliser cette réduction.
 
@@ -286,3 +286,113 @@ AFFINE_COMPACT_ROWS=1 AFFINE_COMPACT_DEPTH=1 AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPT
 ```
 
 Kissat a rendu UNKNOWN pour les quinze essais compacts, avec des limites allant de 70 à 150 secondes. Les deux commandes ci-dessus ont utilisé les limites de 150 et 80 secondes respectivement. Les essais `neuf-productifs-all` et `neuf-productifs-concentre` ont précédé la borne de onze ET et utilisaient encore douze comme plafond. Le circuit exact à 45 portes a passé le contrôle du plafond de neuf termes productifs. Un circuit exact à 47 portes ayant quatre arêtes profondes et dix termes productifs a été rejeté lorsque ce plafond a été appliqué indépendamment du plafond du nombre total d’ET.
+
+## Deux ET internes lorsque les neuf centres sont des droites
+
+Supposons qu’un circuit exact à 43 portes ait exactement quatre arêtes profondes réparties sur plusieurs droites. S’il a neuf centres droites, il a **exactement deux ET internes et onze ET en tout**. Le seul cas à plusieurs droites qui peut échapper à cette conclusion est la répartition 3 + 1 avec un centre point.
+
+On sait déjà que t = 9, puis que 1 ≤ h ≤ 2. Supposons h = 1 et appelons G l’unique ET interne. L’ensemble U du comptage initial contient au moins 40 portes. Pour chaque arête profonde, G est le premier ET vrai. Appelons E le premier ET exposé vrai sur cette arête. À l’évaluation exacte, tout opérande de E se rend vrai par une entrée primaire ou G, en remontant par des OU. Les ET exposés antérieurs sont faux sur cette paire. Au moins un de ces opérandes doit recevoir G, puisque l’évaluation limitée échoue.
+
+### Aucun fil calculé hors de U en amont de G
+
+Les supports des opérandes de G sont alors composés uniquement de points, ou sont des singletons droites. Un support singleton droite ne peut pas rencontrer toutes les paires profondes, puisqu’elles se répartissent sur plusieurs droites. Pour chaque point profond q, les deux supports contiennent donc q et G est vrai sur le singleton q.
+
+Pour chaque arête profonde {q, L}, au moins un opérande de E est faux sur le singleton q, puisque le circuit rejette ce singleton. Sa valeur vraie sur la paire vient de l’entrée L. Elle ne peut pas venir de G, qui est déjà vrai sur le singleton q, ni de q lui-même. L’autre opérande reçoit G, car sinon l’arête serait acceptée par l’évaluation limitée. Par conséquent, pour chaque droite profonde L, G suffit à faire accepter n’importe quelle paire contenant L. Le circuit accepterait toutes les paires entre les points profonds et les droites profondes. Il y a au moins deux points profonds et deux droites profondes, ce qui est incompatible avec l’absence de cycle de longueur quatre.
+
+### Un fil calculé hors de U en amont de G
+
+Soit S₁ une porte hors de U en amont de G. Si |U| ≥ 41, les seules portes hors de U sont S₁ et G. Aucun E choisi ne peut être S₁, puisque G est le premier ET vrai. Tous les E sont donc productifs et reçoivent G par des OU de U dans leurs disjonctions de voisins. Chacun des centres ainsi atteints ajoute un terminal vide dans son comptage. Comme |U| ≤ 41 dans ce cas, il ne peut y avoir qu’un seul centre atteint. Son opérande de centre est une entrée primaire droite, ou une porte de support singleton droite en amont de G. Dans les deux cas il est vrai sur une arête profonde uniquement si cette droite est active. Or les arêtes profondes occupent plusieurs droites.
+
+Il reste |U| = 40. On a au plus une porte supplémentaire S₂. Il n’y a aucun ET exposé non productif, car cela demanderait un OU exposé supplémentaire et ferait monter |U| à 41. Chaque E reçoit G par un chemin de OU qui doit traverser S₂, faute de quoi le comptage gagnerait un terminal vide. La porte S₂ est donc un OU en aval de G. Comme précédemment, son support est un singleton. Un support plus grand ferait compter S₂ dans U, et un support vide constituerait un terminal vide dans un parcours de voisins. Aucun OU de U ne lit directement G, puisque cela ferait aussi monter |U| à 41.
+
+S₁ est un OU, car le seul ET non exposé est G, et les ET exposés sont tous productifs et dans U. Les supports de ses deux opérandes sont vides, composés de points, ou des singletons droites. En amont de G, S₁ est donc le seul fil qui puisse avoir un support mixte, avec des points et une seule droite L₀.
+
+- Si les deux opérandes de G ont des supports contenus chacun dans une seule part du graphe, G est vrai sur toutes les paires entre points profonds et droites profondes. En effet, chaque support contient tous les sommets profonds de sa part. Si le support de S₂ est un point, S₂ ne peut atteindre que des disjonctions de voisins et, sur chaque paire profonde, l’autre opérande de E reçoit l’entrée droite. Si le support de S₂ est une droite, il ne peut atteindre qu’un opérande de centre, et l’autre opérande reçoit l’entrée point. Dans les deux cas, l’autre opérande ne peut recevoir G via S₂, qui ajouterait un sommet de la mauvaise part à son support, ni en contournant S₂. Le circuit accepterait donc toutes ces paires, ce qui est impossible.
+- Si un opérande a pour support mixte celui de S₁, considérons une arête profonde {q, L} avec L distincte de L₀. Cet opérande est vrai grâce à q. L’autre opérande est lui aussi vrai grâce à q, soit parce qu’il est également mixte, soit parce qu’il ne contient que des points. Un singleton droite ne peut pas convenir sur toutes les arêtes profondes. Ainsi G est vrai sur le singleton q. Si S₂ a pour support un point p, toutes les droites profondes contiennent p et q est distinct de p, puisque l’arête de q est profonde. Sur chaque droite profonde L', l’ET choisi reçoit S₂ dans sa disjonction de voisins et l’autre opérande reçoit l’entrée L'. Il accepte donc {q, L'}. Deux droites auraient ainsi deux points communs. Si S₂ a pour support une droite, il alimente un opérande de centre et l’autre opérande reçoit q sur l’arête {q, L}. E accepterait alors le singleton q.
+
+Il n’existe donc pas de circuit de ce type avec h = 1. Avec h = 2, on a t + h = 11, et la borne t + h + 2u ≤ 12 force u = 0. Le circuit a exactement onze ET.
+
+L’option `AFFINE_LINEAR_SPLIT=1` fixe deux ET internes et exige un ET productif centré sur chacune des neuf droites. L’option `AFFINE_EXCLUDE_DEEP_TRIPLE=1` retire la répartition 3 + 1. Les 167 orbites restantes à plusieurs droites auront toutes neuf centres droites si elles sont réalisables.
+
+```sh
+AFFINE_COMPACT_ROWS=1 AFFINE_COMPACT_DEPTH=1 AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 \
+  AFFINE_DEPTH_MAX_NINE=1 AFFINE_DEEP_ORBIT=all AFFINE_DEEP_LINE_PATTERN=split \
+  AFFINE_LINEAR_SPLIT=1 AFFINE_EXCLUDE_DEEP_TRIPLE=1 \
+  node frontiere.cjs build affine43-deux-et-internes-sans-triple.cnf 43 197 ordered
+kissat --time=85 affine43-deux-et-internes-sans-triple.cnf
+```
+
+En retirant `AFFINE_EXCLUDE_DEEP_TRIPLE=1`, on inclut aussi les cinq orbites 3 + 1 avec neuf centres droites.
+
+## Au moins cinq arêtes nécessitent deux ET
+
+On exclut maintenant le cas de quatre arêtes profondes. On reprend m = 32, s = 43, t ∈ {8, 9} et les bornes
+
+```text
+t + h ≤ 11
+t + h + 2u ≤ 12
+|U| ≥ 31 + t + u
+```
+
+Ici U contient les t ET productifs, les OU exposés et les OU comptés dans leurs voisins. Il ne contient ni les h ET internes ni les u ET exposés non productifs. Pour chaque arête profonde, on regarde le premier ET exposé E vrai sur cette arête. En amont de E, les ET exposés sont faux sur l’arête. Les chemins de OU qui y apportent une valeur vraie peuvent donc être suivis jusqu’à une entrée primaire ou un ET interne.
+
+Deux observations seront utilisées pour les arêtes profondes toutes situées sur une même droite L. Aucun ET productif n’a alors L pour centre, et, en notant Q les quatre points de L, tout support en U contient au plus un point de Q. Cela vaut pour les gardes de centres points, qui contiennent des droites, et pour les gardes des autres centres droites, qui rencontrent L au plus en un point. Une entrée primaire a la même propriété. Ainsi deux OU supplémentaires peuvent réunir au plus trois points de Q dans un support. Par ailleurs, si un E centré sur une droite A ≠ L accepte une arête profonde, son opérande de centre doit être un OU hors de U, de support singleton A et vrai grâce à un ET interne. L’entrée primaire A est inactive sur cette arête.
+
+### Neuf ET productifs et deux ET internes
+
+Dans ce cas u = 0. Si |U| ≥ 41, toutes les portes sont dans U ou sont les deux ET internes. Un chemin de OU depuis un ET interne vers un opérande de E doit passer par des OU de U, tous de support de taille au moins deux. Il aboutit donc dans les voisins, où il ajoute un terminal vide à leur comptage. Deux centres ainsi atteints donneraient |U| ≥ 42, puis au moins 44 portes. Un seul centre ne peut expliquer les quatre arêtes. Son opérande de centre est une entrée primaire. Pour plusieurs droites profondes, aucune droite ne convient, et un point n’a que trois incidences. Pour une seule droite profonde L, L n’est pas un centre.
+
+Il reste |U| = 40 et un unique OU S hors de U. Aucun OU de U ne peut lire directement un ET interne, car cela ajouterait un terminal vide et ferait passer |U| à 41. Tout chemin d’activation d’un opérande productif depuis un ET interne passe donc par S. Comme précédemment, S a un support singleton. Un support de taille au moins deux ferait compter S parmi les voisins. Un support vide ferait ajouter un terminal vide, puisque l’opérande atteint a un support non vide.
+
+Soit H le dernier ET interne dans l’ordre topologique et K l’autre ET interne. H doit être lu directement par S. Il a un lecteur puisque la porte est vivante. Aucun OU de U ne peut le lire, et un ET exposé qui le lit directement serait non productif, car son support est vide. Pour que S ait un support singleton, son autre opérande doit être une entrée primaire. Les OU comptés dans U ont des supports vides ou de taille au moins deux. K doit donc être lu directement par H. Ses autres lecteurs possibles étaient S, les OU de U et les ET exposés productifs, et aucun ne convient.
+
+H doit être vrai sur les quatre arêtes profondes, car S transmet sa valeur vers les E et ces arêtes échouent quand on force les ET internes à zéro. K est alors vrai sur ces quatre arêtes. Les supports en amont de K et de l’autre opérande de H, si celui-ci est distinct de K, sont contenus chacun dans une seule part du graphe. La porte S est en aval, et les seuls autres OU sont ceux de U. Sur les quatre arêtes, les valeurs utiles de ces opérandes s’obtiennent en forçant les ET précédents à zéro. Les ET exposés antérieurs au premier E sont faux et aucun OU de U ne lit K directement. Chaque support doit donc contenir tous les sommets profonds de sa part. H est ainsi vrai sur toute paire formée d’un point profond et d’une droite profonde.
+
+Pour plusieurs droites, cette dernière propriété donne une contradiction. Si S a pour support un point, il atteint un opérande de centre point ou un opérande de voisins de centre droite. L’autre opérande est vrai grâce à la droite profonde L. Il ne peut recevoir un ET interne via S, car son support est fait de droites, ni en contournant S. Donc H vrai avec L suffit à faire accepter la paire en sortie. Si S a pour support une droite, l’argument est symétrique avec le point profond. Toutes les paires entre points et droites profonds seraient acceptées, alors que les deux ensembles ont au moins deux éléments et que le graphe est sans cycle de longueur quatre.
+
+Pour une seule droite profonde L, S ne peut avoir pour support un point p. Sur chacune des quatre arêtes {q, L}, l’ET atteint via S est centré soit sur p soit sur L. L n’est pas un centre. Dans le premier cas, L figure parmi les voisins peu profonds de p, mais cela est impossible puisque les quatre incidences de L sont profondes. Si S a pour support une droite A, chaque point profond q doit être incident à A par un terme peu profond. Si S atteint un opérande de centre A, l’autre opérande contient q. Si S atteint la garde d’un centre point, ce centre doit être q. Les quatre points de L devraient alors appartenir à une droite A distincte de L, ce qui est impossible.
+
+### Neuf ET productifs et un ET interne
+
+Notons G l’unique ET interne. Pour plusieurs droites profondes, le cas de neuf centres droites a déjà été exclu. Le centre point, s’il existe, est unique. La droite L sans centre porte trois des quatre arêtes profondes, et la quatrième est sur une droite M. Les supports des portes de U et des entrées primaires contiennent chacun au plus un des trois points profonds de L. Aucune garde de centre droite ne peut en contenir davantage car L n’est pas un centre.
+
+Si toutes les portes en amont de G sont dans U, à part les entrées primaires, les deux supports des opérandes de G contiennent L. Chacun doit rencontrer les trois paires profondes de L et ne peut contenir leurs trois points. Ces supports sont donc formés uniquement de droites et contiennent aussi M, puisque G est vrai sur l’arête profonde de M. Ainsi G est vrai sur les singletons L et M. Sur une arête profonde {q, L}, l’un des opérandes de E est faux sur le singleton L et reçoit donc q sur la paire. L’autre reçoit G, car l’arête ne passe pas l’évaluation limitée. E accepte alors aussi {q, M}. Les trois points profonds de L seraient tous incidents à M, ce qui est impossible.
+
+S’il existe une porte S₁ hors de U en amont de G, le raisonnement de budget utilisé pour les neuf centres droites s’applique. Pour |U| ≥ 41, au plus un centre peut recevoir G. Son centre est une entrée primaire ou un singleton calculé avant G, vrai sur les arêtes profondes seulement lorsque son sommet est actif. Il ne peut expliquer les quatre arêtes. Pour |U| = 40, u = 0 et une unique porte S₂ en aval de G transmet G vers les E. Elle est un OU de support singleton. S₁ est un OU et son support contient au plus deux des trois points profonds de L. Chaque opérande de G doit donc encore contenir L, et G est vrai sur le singleton L. Si le support de S₂ est un point, sur chaque arête profonde de L l’autre opérande de E reçoit L, ce qui ferait accepter le singleton L. Si le support de S₂ est une droite A, toute arête profonde {q, L} impose une incidence peu profonde {q, A}, en examinant si S₂ atteint un opérande de centre ou de voisins. Il faudrait que les trois points profonds de L appartiennent à une droite A distincte de L.
+
+Pour quatre arêtes profondes sur une seule droite L, chacun des opérandes de G contient L. Même avec deux OU supplémentaires en amont de G, un support ne peut contenir que trois des quatre points de L. Comme G est le premier ET vrai sur chacune des quatre arêtes, ses deux supports doivent rencontrer les quatre paires, donc G est vrai sur le singleton L. Chaque E centré sur une droite A ≠ L demande un OU de centre calculé hors de U. Son opérande de voisins doit alors recevoir q sur toute arête profonde qu’il accepte. Il ne peut recevoir G, car cela ferait accepter le singleton L, ni L lui-même. Ce terme couvre au plus l’unique point de A sur L. Un centre point éventuel ne couvre aussi qu’un point profond. En effet, s’il est hors de L, un opérande de centre rendu vrai par G demanderait à la garde de recevoir L et ferait accepter le singleton L. S’il est sur L, L est absent de la garde peu profonde, qui doit donc recevoir G. Son opérande de centre doit alors recevoir q et ne peut être vrai que pour son propre point.
+
+Si u = 0, il y a au plus deux OU hors de U en plus de G. Les termes à centre droite couvrent donc au plus deux points, et l’unique centre point au plus un. Si u = 1, |U| ≥ 41 et l’ET exposé non productif occupe la dernière porte hors de U. Aucun centre droite calculé ne peut intervenir. L’ET non productif peut couvrir au plus un point. Son opérande faux sur le singleton L doit recevoir q par son support, et seul l’opérande de support non vide peut le faire. Les quatre points ne sont donc pas couverts.
+
+### Huit ET productifs
+
+Les huit centres sont les huit droites autres que L. Toutes les arêtes profondes sont sur L et tout terme productif qui en accepte une demande un centre calculé. On a |U| ≥ 39 et h est compris entre un et trois.
+
+- **Un ET interne G.** Si u = 0, au moins un OU de centre hors de U est en aval de G, donc au plus deux autres portes hors de U sont en amont de G. Si u = 1, |U| ≥ 40 et, après avoir compté G et l’ET non productif, il reste au plus un OU hors de U. Dans les deux cas, chaque support d’opérande de G rencontre les quatre paires et contient au plus trois points de L, donc il contient L. G est vrai sur le singleton L. Chaque terme productif atteint reçoit q dans son support de voisins et ne couvre qu’un point profond. Avec u = 0, il y a au plus trois OU de centre. Avec u = 1, l’ET non productif couvre au plus deux points grâce à son unique opérande de support non vide, puisqu’il reste au plus un OU hors de U. Au plus un centre calculé peut fournir un autre point. On ne couvre jamais quatre points.
+- **Trois ET internes.** On a u = 0 et au plus un OU de centre. Il en faut un, donc |U| = 39. Aucun OU de U ne lit directement un ET interne, puisque le terminal vide supplémentaire ferait monter |U| à 40. L’opérande de voisins du seul terme à centre calculé ne peut recevoir un ET interne par ce centre, car son support est composé de points et celui du centre est une droite. Comme il ne peut pas non plus le recevoir en contournant le centre, il ne couvre qu’un point de L.
+- **Deux ET internes et u = 1.** On a |U| = 40 et l’ET non productif est la seule porte hors de U en plus des deux ET internes. Aucun centre calculé n’existe, et aucun OU de U ne lit directement un ET interne, car |U| monterait à 41. Les quatre arêtes sont donc acceptées par l’ET non productif. Pour ses opérandes qui sont des ET internes, on peut remonter encore à travers les ET internes. Tous les autres opérandes doivent être vrais sur les quatre paires grâce à leurs supports, qui contiennent au plus un point de L. Les ET exposés antérieurs sont faux sur les quatre paires, puisque le seul E possible est l’ET non productif. Tous les supports employés contiennent L. En réévaluant les ET internes en ordre topologique, on voit que l’ET non productif est vrai sur le singleton L.
+- **Deux ET internes et u = 0.** Si |U| = 39, aucun OU de U ne lit directement un ET interne. Au plus deux centres calculés peuvent aider, chacun avec une garde qui ne reçoit la valeur vraie que par une entrée de point sur l’arête profonde. Une garde ne peut lire un centre calculé de support singleton droite par un chemin de OU, puisque son support est constitué de points. Au plus deux points sont donc couverts. Si |U| ≥ 40, le seul OU hors de U doit être un centre calculé S, et |U| = 40. Il n’y a qu’un terme E avec ce centre. Il accepte les quatre arêtes et est le premier ET exposé vrai sur chacune. La porte S lit directement un ET interne H et une entrée primaire droite. Aucun OU de U ne peut transmettre H vers S par un chemin de OU, puisque les seuls OU non exposés de U ont des supports de taille au moins deux. L’autre ET interne est noté K.
+
+Dans ce dernier cas H est vrai sur les quatre arêtes. Montrons qu’il est vrai sur le singleton L. Pour un fil faux sur ce singleton, une trace de OU peut apporter la valeur vraie sur {q, L} par q ou par un ET interne également faux sur le singleton L. Les ET exposés antérieurs à E sont faux sur toutes ces paires. Si K précède H et est faux sur le singleton L, un de ses opérandes y est faux. Cet opérande ne peut encore recevoir aucune valeur d’un ET interne. Son support contient au plus un point de L, donc K est vrai sur au plus une des quatre paires. Si K est vrai sur le singleton L, aucune trace de OU depuis K ne peut atteindre un opérande faux sur le singleton L. Par conséquent, si H était faux sur le singleton L, son opérande faux ne pourrait être vrai que sur au plus deux paires, une grâce à son support et une grâce à K. Si K est en aval de H, il ne peut même pas fournir cette deuxième paire. Cela contredit la valeur vraie de H sur les quatre paires.
+
+La porte S est donc vraie sur le singleton L, et la garde de E est fausse sur ce singleton. Elle peut recevoir au plus un point de L par son support. Elle ne peut recevoir ni H ni S par un chemin de OU, puisque ces deux fils sont déjà vrais sur le singleton L. Si K la rejoint et est faux sur le singleton L, il est vrai sur au plus une paire, que K soit en amont de H ou en aval. Dans le second cas, on prend un opérande de K faux sur le singleton L, qui ne peut recevoir H ni S par un chemin de OU. Dans les deux cas cet opérande est vrai par son support sur au plus une paire. La garde de E ne peut donc être vraie que sur au plus deux des quatre paires.
+
+Toutes les possibilités pour huit ou neuf ET productifs sont exclues. **Un circuit affine exact à 43 portes doit avoir au moins cinq des 36 arêtes profondes.**
+
+### Vérification et recherches à cinq arêtes profondes
+
+Les deux essais historiques avec neuf centres droites ont rendu UNKNOWN après 85 secondes. Avant l’exclusion complète de quatre arêtes, l’encodage correspondant a été contrôlé à l’aide d’un circuit exact à 46 portes avec deux ET internes et quatre arêtes profondes réparties 2 + 2. Il l’a accepté. Il a rejeté une copie exacte à 47 portes avec le même profil d’arêtes profondes mais trois ET internes, même en relevant temporairement le plafond du nombre total d’ET pour isoler ce contrôle.
+
+```sh
+AFFINE_COMPACT_ROWS=1 AFFINE_MIN_DEEP_EDGES=5 \
+  node frontiere.cjs build affine43-compact-cinq-global.cnf 43 197 ordered
+AFFINE_COMPACT_ROWS=1 AFFINE_MIN_DEEP_EDGES=5 AFFINE_EDIT_BASE=reparation-affine-43.json AFFINE_EDIT_BUDGET=3 \
+  node frontiere.cjs build affine43-compact-cinq-proche.cnf 43 197 plain
+AFFINE_COMPACT_ROWS=1 AFFINE_MIN_DEEP_EDGES=5 AFFINE_EDIT_BASE=reparation-affine-43-structure.json AFFINE_EDIT_BUDGET=4 \
+  node frontiere.cjs build affine43-compact-cinq-structure.cnf 43 197 plain
+for name in global proche structure; do
+  kissat --time=75 "affine43-compact-cinq-$name.cnf"
+done
+```
+
+Ces trois essais ont rendu UNKNOWN après 75 secondes chacun. Pour contrôler le nouveau filtre, on a conservé les quatre arêtes profondes du témoin exact à 45 portes et rendu une incidence supplémentaire profonde dans une deuxième étoile, en plaçant son ET avant le OU de voisins. Le circuit résultant à 46 portes est exact sur la frontière et a cinq arêtes profondes. Le filtre a accepté celui-ci et rejeté le témoin exact à quatre arêtes profondes.

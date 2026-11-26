@@ -13,3 +13,8 @@ affine43-compact-structure.out:s UNKNOWN
 affine43-neuf-productifs-all.out:s UNKNOWN
 affine43-neuf-productifs-concentre.out:s UNKNOWN
 affine43-neuf-productifs-onze-et.out:s UNKNOWN
+affine43-deux-et-internes-lineaires.out:s UNKNOWN
+affine43-deux-et-internes-sans-triple.out:s UNKNOWN
+affine43-compact-cinq-global.out:s UNKNOWN
+affine43-compact-cinq-proche.out:s UNKNOWN
+affine43-compact-cinq-structure.out:s UNKNOWN
