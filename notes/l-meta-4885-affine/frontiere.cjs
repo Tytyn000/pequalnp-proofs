@@ -337,7 +337,7 @@ if(cmd==='relaxed-control'){
   if(deepLinePattern&&(!depthEquality||!['two-plus-one','distinct'].includes(deepLinePattern)))
     throw Error('Deep line pattern needs the equality case and two-plus-one or distinct');
   if(deepEdgeCount){
-    if(![2,3].includes(deepEdgeCount))throw Error('Expected two or three deep edge witnesses');
+    if(![2,3,4].includes(deepEdgeCount))throw Error('Expected two, three or four deep edge witnesses');
     if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
       throw Error('Depth condition needs the exact affine instance at at most 43 gates');
     function shallowAccepts(inputs){

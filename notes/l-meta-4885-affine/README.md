@@ -87,3 +87,35 @@ done
 ```
 
 Les deux essais ont donné UNKNOWN après 50 secondes de calcul chacun. Ils couvrent le cas où exactement trois arêtes sont profondes. Les circuits qui en ont davantage ne sont pas soumis à cette partition.
+
+## Au moins quatre arêtes nécessitent deux ET
+
+On exclut entièrement m = 33 pour un circuit exact à 43 portes. Supposons le contraire. Par les résultats précédents, les neuf ET productifs ont les neuf droites comme centres, les trois arêtes profondes occupent au moins deux droites, G est l’unique ET interne et |U| ≥ 41.
+
+Pour chacune des arêtes profondes, on choisit le premier ET exposé E qui y est vrai. Si E est productif, au moins un de ses opérandes est faux lorsque tous les ET sont forcés à zéro. Sa valeur vraie provient donc de G par un chemin de OU, puisque les ET exposés antérieurs sont faux sur cette arête. Si tous les OU de ce chemin appartiennent à U, le calcul du nombre de OU de voisins pour le centre de E gagne une unité grâce au terminal vide G. Deux centres distincts apporteraient deux unités distinctes, car leurs OU comptés sont disjoints.
+
+Si |U| ≥ 42, toutes les portes vivantes sont dans U ou égales à G. Tous les E choisis sont alors productifs et reçoivent G par des OU de U. Le cas de deux centres distincts donnerait |U| ≥ 43, puis au moins 44 portes en comptant G. Un seul centre est également impossible, car son opérande de centre est son entrée primaire de droite, et les trois arêtes profondes occupent plusieurs droites.
+
+Il reste |U| = 41. Il y a une porte supplémentaire S dans le cône de sortie. En effet, sans elle, l’un des chemins précédents ferait passer |U| à 42. Pour chaque arête profonde, soit E est S et est non productif, soit E est productif et le chemin de OU depuis G jusqu’à l’opérande de E traverse S. Un chemin productif qui évite S donnerait |U| ≥ 42. En particulier, S est en aval de G. On utilisera aussi le fait qu’un OU compté dans U et non exposé ne peut lire directement G. Un tel OU est compté dans les voisins d’un centre, et son entrée G y serait un terminal vide supplémentaire, ce qui donnerait encore |U| ≥ 42.
+
+Tout fil en amont de G a un support composé uniquement de points ou égal à un singleton droite. Les seules portes de support non vide possibles en amont sont les OU de voisins comptés dans U, dont les centres sont des droites. G est le premier ET vrai sur chacune des trois arêtes profondes. Si l’un de ses opérandes avait un support singleton droite, G ne pourrait être le premier ET vrai que sur les arêtes de cette droite. Les deux supports sont donc composés de points. Pour chaque arête profonde, son point q doit appartenir aux deux supports. **G est donc vrai sur le singleton q pour chacun des points des arêtes profondes.**
+
+Si S est un ET exposé non productif, il est choisi comme E pour les trois arêtes. Pour chacune, au moins un de ses opérandes est vrai via G par un chemin de OU, puisque l’évaluation limitée échoue. Ce chemin est direct, car le premier OU qui lirait G serait compté dans U. L’autre opérande ne peut également être G, car l’ET exposé serait alors vrai sur un singleton q. Sur chaque arête profonde, cet autre opérande a la valeur déterminée par son support, car il ne peut recevoir G par un chemin de OU et aucun ET exposé antérieur n’est vrai. Un support composé de points le rendrait vrai sur le singleton q, ce qui ferait accepter ce singleton par S. Un support singleton droite obligerait les trois arêtes profondes à appartenir à la même droite. Les deux possibilités sont exclues.
+
+Si S est un OU, son support contient au plus un singleton. Pour un chemin vers un opérande de centre, cela découle de l’inclusion des supports le long du chemin. Pour un chemin vers un opérande de voisins, le parcours de comptage inclurait S s’il avait un support d’au moins deux singletons, car tous les OU situés après S sur ce chemin sont comptés et ont donc un support d’au moins deux singletons. Le support de S ne peut pas être vide. En effet, l’opérande de centre ou de voisins a un support non vide. Si S avait un support vide, il faudrait au moins un OU après S sur le chemin vers cet opérande. Ces OU seraient tous comptés dans U, donc le chemin aboutirait à un opérande de voisins et S serait un terminal vide supplémentaire de son parcours de comptage.
+
+- Si S a pour support une droite, il ne peut alimenter qu’un opérande de centre, car les voisins ont des supports constitués de points. Soit E un ET choisi sur une arête profonde. L’opérande de voisins ne peut recevoir G via S, puisqu’il contiendrait alors la droite du support de S. Il ne peut recevoir G en le contournant, car un OU compté ne peut lire directement G, et l’opérande de voisins de E a un support non vide. L’opérande de voisins est donc vrai grâce à l’entrée q sur cette arête. Sur le singleton q, G rend l’opérande de centre vrai et l’entrée q rend l’opérande de voisins vrai. Cela ferait accepter un singleton.
+- Si S a pour support un point p, chaque ET choisi sur une arête profonde reçoit S par son opérande de voisins. Son opérande de centre est l’entrée primaire de sa droite L. Toutes les droites ainsi utilisées contiennent p, car p appartient à chacun des supports de voisins correspondants. Elles sont au moins deux, puisque les arêtes profondes occupent plusieurs droites. Pour chaque point q d’une arête profonde, G est vrai sur le singleton q et rend vrai l’opérande de voisins de tous ces ET. L’exactitude du circuit impose que q appartienne à toutes ces droites, car elles acceptent chacune la paire {L, q}. Or q est distinct de p, puisque l’arête entre p et sa propre droite aurait été acceptée par l’évaluation limitée. Deux droites distinctes auraient donc deux points communs.
+
+Tous les cas sont exclus. Un circuit exact à 43 portes doit avoir au moins quatre arêtes profondes.
+
+```sh
+AFFINE_MIN_DEEP_EDGES=4 node frontiere.cjs build affine43-quatre-profondes-global.cnf 43 197 ordered
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_EDIT_BASE=reparation-affine-43.json AFFINE_EDIT_BUDGET=3 node frontiere.cjs build affine43-quatre-profondes-proche.cnf 43 197 plain
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_EDIT_BASE=reparation-affine-43-structure.json AFFINE_EDIT_BUDGET=4 node frontiere.cjs build affine43-quatre-profondes-structure.cnf 43 197 plain
+for case in global proche structure; do
+  kissat --time=55 "affine43-quatre-profondes-$case.cnf"
+done
+```
+
+Les trois essais ont donné UNKNOWN après 55 secondes chacun. L’existence d’un circuit à 43 portes reste ouverte. Les recherches de la section précédente sur exactement trois arêtes profondes sont conservées pour reproduire les essais antérieurs.
