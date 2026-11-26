@@ -517,3 +517,7 @@ kissat --time=85 affine43-cinq-deux-internes-all.cnf
 L’option `AFFINE_FIVE_WIDE=1` sélectionne les orbites où chaque droite porte au plus deux arêtes profondes. Elle impose deux ET internes et un ET productif centré sur chacune des neuf droites. On peut la combiner avec `AFFINE_DEEP_PARTITION` pour cibler une répartition.
 
 Les trois essais ont donné UNKNOWN avec une limite de 85 secondes chacun. Ils couvrent l’ensemble des 909 orbites, puis séparément les répartitions sur trois et cinq droites. Pour le contrôle, un circuit exact à 48 portes a été construit avec un ET interne commun à trois arêtes autour d’un point et un autre ET interne pour deux arêtes sur une quatrième droite. Après renumérotation sur son orbite, il a été accepté. En recopiant un ET interne, on obtient un circuit exact à 49 portes avec le même profil d’arêtes, mais trois ET internes. Il a été rejeté même en relâchant les plafonds du nombre total de ET et de t + h.
+
+## Exclusion certifiée de neuf centres droites
+
+Une [projection SAT et ses certificats vérifiés](PROJECTION_CINQ.md) excluent les 909 orbites de cinq arêtes profondes où chaque droite porte au plus deux de ces arêtes. Elle exclut aussi les neuf centres droites pour les répartitions 3 + 2 et 3 + 1 + 1. Il reste 55 orbites pour exactement cinq arêtes profondes. Les 53 orbites de types 3 + 2 et 3 + 1 + 1 exigent au moins un centre point. Le cas à 43 portes reste ouvert.
