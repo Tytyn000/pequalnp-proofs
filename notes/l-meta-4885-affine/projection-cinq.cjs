@@ -12,6 +12,7 @@ const lines = range(lineCount);
 const inputs = range(inputCount);
 const patterns = ['2+2+1', '2+1+1+1', '1+1+1+1+1'];
 const additionalPatterns = ['3+2', '3+1+1', '4+1'];
+const sixPatterns = ['3+3', '3+2+1', '3+1+1+1', '2+2+2', '2+2+1+1', '2+1+1+1+1', '1+1+1+1+1+1'];
 
 function maximalNegatives() {
   const neighbors = points.map(point => edges.reduce((mask, [p, line]) =>
@@ -96,9 +97,11 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   assert.ok(Number.isInteger(budget) && budget >= 0);
   assert.ok([1, 2, 3].includes(hidden));
   assert.ok([0, 1, 2].includes(unproductive));
+  const edgeCount = representatives[0].indices.length;
+  assert.ok(edgeCount === 5 || (edgeCount === 6 && !mixed));
   for (const { indices } of representatives) {
-    assert.equal(indices.length, 5);
-    assert.equal(new Set(indices).size, 5);
+    assert.equal(indices.length, edgeCount);
+    assert.equal(new Set(indices).size, edgeCount);
     assert.ok(indices.every(i => Number.isInteger(i) && i >= 0 && i < edges.length));
     const affectedLines = lines.map(line => indices.filter(i => edges[i][1] === pointCount + line));
     assert.ok(affectedLines.every(group => group.length <= (mixed ? 4 : 3)));
@@ -108,7 +111,7 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   const fixed = new Set(representatives[0].indices);
   const isDeep = edges.map((_, i) => symbolic ? cnf.fresh() : fixed.has(i) ? 1 : -1);
   if (symbolic) {
-    cnf.atMost(isDeep, 5);
+    cnf.atMost(isDeep, edgeCount);
     const choices = representatives.map(({ indices }) => cnf.and(indices.map(i => isDeep[i])));
     cnf.add(...choices);
   }
@@ -279,13 +282,14 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
 }
 
 const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0', centerMode = 'lines'] = process.argv.slice(2);
-const symbolic = selection === 'all' || [...patterns, ...additionalPatterns].includes(selection);
+const symbolic = selection === 'all' || [...patterns, ...additionalPatterns, ...sixPatterns].includes(selection);
 if (!filename || (!symbolic && !/^\d+$/.test(selection))) {
   throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat]');
 }
 const { representatives } = JSON.parse(fs.readFileSync(catalog, 'utf8'));
+const group = representatives[0]?.indices.length === 6 ? sixPatterns : patterns;
 const allowed = symbolic
-  ? representatives.filter(row => selection === 'all' ? patterns.includes(row.pattern) : row.pattern === selection)
+  ? representatives.filter(row => selection === 'all' ? group.includes(row.pattern) : row.pattern === selection)
   : [representatives[Number(selection) - 1]];
 if (allowed.some(row => !row)) throw Error('Unknown orbit number');
 const budget = Number(budgetArg);

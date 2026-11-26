@@ -68,8 +68,8 @@ function possibleDoubleStar(indices){
   return selected.every(([point,line])=>universalPoints.has(point)||universalLines.has(line));
 }
 function deepEdgeOrbits(edgeCount){
-  if(edges.length!==36||![4,5].includes(edgeCount))
-    throw Error('Deep-edge orbits require four or five edges of the complete affine graph');
+  if(edges.length!==36||![4,5,6].includes(edgeCount))
+    throw Error('Deep-edge orbits require four to six edges of the complete affine graph');
   const edgeIndices=new Map(edges.map((edge,i)=>[edge.join(','),i]));
   const images=automorphisms().map(permutation=>edges.map(([point,line])=>
     edgeIndices.get([permutation[point],permutation[line]].join(','))
@@ -101,11 +101,11 @@ function deepEdgeOrbits(edgeCount){
     const pattern=[...byLine.values()].sort((x,y)=>y-x).join('+');
     const representative={indices:[...selected],pattern,size:orbit.size};
     if(edgeCount===4)representative.tightBridge=possibleTightBridge(selected);
-    else representative.doubleStar=possibleDoubleStar(selected);
+    else if(edgeCount===5)representative.doubleStar=possibleDoubleStar(selected);
     representatives.push(representative);
   }
   visit(0);
-  const expected=edgeCount===4?58905:376992;
+  const expected={4:58905,5:376992,6:1947792}[edgeCount];
   if(seen.size!==expected||representatives.reduce((sum,rep)=>sum+rep.size,0)!==seen.size)
     throw Error('Expected a partition of all deep-edge sets');
   return {automorphismCount:images.length,representatives};
@@ -325,8 +325,8 @@ if(cmd==='relaxed-control'){
       choices.filter(c=>c.usesFirst===dep&&c.op===op).length));
     console.log(JSON.stringify({first:[a,b,op],usesAnd:counts[0],usesOr:counts[1],externalAnd:counts[2],externalOr:counts[3]}));
   }
-} else if(cmd==='four-deep-orbits'||cmd==='five-deep-orbits'){
-  const {automorphismCount,representatives}=deepEdgeOrbits(cmd==='four-deep-orbits'?4:5);
+} else if(['four-deep-orbits','five-deep-orbits','six-deep-orbits'].includes(cmd)){
+  const {automorphismCount,representatives}=deepEdgeOrbits({'four-deep-orbits':4,'five-deep-orbits':5,'six-deep-orbits':6}[cmd]);
   console.log(JSON.stringify({automorphismCount,representatives},null,2));
 } else if(cmd==='orbits'){
   for(const [a,b] of [[0,1],[0,2],[0,12],[0,13],[12,13]]){

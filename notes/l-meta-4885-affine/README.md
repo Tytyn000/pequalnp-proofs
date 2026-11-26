@@ -525,3 +525,57 @@ Une [projection SAT et ses certificats vérifiés](PROJECTION_CINQ.md) excluent 
 ## Au moins six arêtes profondes
 
 La [projection SAT étendue](PROJECTION_CINQ.md) couvre les 55 dernières orbites de cinq arêtes profondes, y compris les centres points et les centres répétés. Les 18 nouvelles formules sont insatisfiables et chacune a un certificat DRAT vérifié. Avec les exclusions antérieures, **un circuit affine exact à 43 portes doit avoir au moins six arêtes profondes parmi les 36**. Le premier essai SAT avec cette borne a donné UNKNOWN après 75 secondes. Le circuit exact à 44 portes reste le meilleur témoin disponible.
+
+## Cas de six arêtes profondes
+
+Avec exactement six arêtes profondes, m = 30. Le comptage d’une unité supplémentaire donne t + h ≤ 12 et t ≥ 8. En comptant aussi les ET exposés non productifs, on a t + h + 2u ≤ 14. Il en résulte h ≤ 4 et **au plus douze ET au total**.
+
+En effet, pour dépasser douze ET, il faudrait u = 1 et t + h = 12. À 43 portes, le comptage sature alors le budget. Il ne laisse aucun OU projeté hors du comptage de la sortie et des gardes. Aucun OU compté dans une garde ne peut lire un ET interne. Si c’était le cas, un terminal de support vide ajouterait une porte au comptage. Aucun ET productif ne peut donc être le premier ET exposé vrai sur une arête profonde, puisqu’un tel terme devrait recevoir la valeur d’un ET interne par un chemin de OU. L’unique ET exposé non productif est le premier ET exposé vrai sur chacune des six arêtes profondes.
+
+Après suppression des ET exposés en amont, on remonte ses opérandes à travers les ET internes. Le résultat est une conjonction de signaux dont chacun est une entrée primaire ou un OU compté. Les OU exposés réduits à zéro ne peuvent fournir aucun des signaux vrais de cette conjonction. Les autres OU ne reçoivent aucun ET interne. Chacun des signaux est donc vrai sur les six arêtes grâce à son support, qui appartient à une seule part. Il s’ensuit qu’il contient tous les sommets profonds de sa part. Le circuit accepterait toutes les paires formées d’un point profond et d’une droite profonde. Les deux parts ont au moins deux sommets profonds puisque le degré maximal est quatre. Le graphe est sans cycle de longueur quatre, d’où la contradiction.
+
+Le catalogue des six arêtes contient 4 740 orbites sous les 432 automorphismes de l’incidence affine. Une construction indépendante avec les applications affines inversibles de F₃² a donné les mêmes tailles d’orbites pour chaque répartition.
+
+| Arêtes profondes par droite | Ensembles | Orbites |
+| --- | ---: | ---: |
+| 4 + 2 | 432 | 2 |
+| 4 + 1 + 1 | 4 032 | 14 |
+| 3 + 3 | 576 | 4 |
+| 3 + 2 + 1 | 48 384 | 116 |
+| 3 + 1 + 1 + 1 | 129 024 | 324 |
+| 2 + 2 + 2 | 18 144 | 58 |
+| 2 + 2 + 1 + 1 | 435 456 | 1 056 |
+| 2 + 1 + 1 + 1 + 1 | 967 680 | 2 302 |
+| 1 + 1 + 1 + 1 + 1 + 1 | 344 064 | 864 |
+| **Total** | **1 947 792** | **4 740** |
+
+### Projection avec neuf termes centrés sur des droites
+
+Dans ce sous-cas t = 9 et chaque terme est centré sur une droite distincte. La garde de chaque droite contient donc exactement ses voisins peu profonds. Le même raisonnement que pour la [projection à cinq arêtes](PROJECTION_CINQ.md) donne un budget de 5 − h − 2u pour la somme du nombre de OU projetés et du nombre de terminaux vides comptés par centre. Les répartitions qui contiennent un 4 sont impossibles dans ce sous-cas, car une droite sans incidence peu profonde ne peut centrer un terme productif. Les 4 724 autres orbites sont prises en charge par le sélecteur `all` du générateur de projection lorsqu’il reçoit le catalogue à six arêtes.
+
+Le générateur de projection est conservé sous son nom historique. Le nombre d’arêtes est lu dans le catalogue. Les modes à centres points ou répétés restent spécifiques au catalogue de cinq arêtes. Pour le contrôle positif à six arêtes, deux ET internes calculent les deux groupes de trois incidences profondes, avec quatre OU projetés. Chacune des deux gardes concernées reçoit l’un des ET comme terminal de support vide. Le contrôle avec un budget de six est satisfaisable.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+node projection-cinq.cjs orbites-six.json 3+3 projection-33-h2.cnf 3 2 0
+kissat --time=45 projection-33-h2.cnf projection-33-h2.drat
+drat-trim projection-33-h2.cnf projection-33-h2.drat
+```
+
+Les trois arguments après le nom du CNF sont le budget, le nombre de ET internes h et le nombre de ET exposés non productifs u. Pour reproduire un lot de la répartition 2 + 2 + 2, filtrer les représentants du catalogue sur cette répartition, puis prendre les huit entrées consécutives du lot dans l’ordre du catalogue, ou les deux dernières pour le lot 8. Écrire ces entrées dans un objet JSON dont la clé est `representatives`. Le lot utilise le budget 3 avec h = 2 et u = 0.
+
+### Quand huit centres distincts sont possibles
+
+Il faut au moins huit centres distincts pour couvrir les 30 arêtes peu profondes. Avec huit centres dont r points, la somme des degrés vaut 32 − r, donc r ≤ 2. Si r = 2, il y a trois droites sans centre. Elles portent au total douze incidences, dont au moins six doivent être couvertes par les deux points centres. Ces deux points devraient appartenir à chacune des trois droites, ce qui est impossible.
+
+Si r = 1, les deux droites sans centre ont chacune au moins trois arêtes profondes. Les six arêtes profondes sont donc réparties 3 + 3, et les deux incidences peu profondes passent par l’unique point centre. Si r = 0, l’unique droite sans centre porte quatre arêtes profondes. La répartition est nécessairement 4 + 2 ou 4 + 1 + 1. **En dehors de ces trois répartitions, il faut au moins neuf centres distincts.**
+
+### Résultats certifiés à six arêtes
+
+Les 29 essais et leurs empreintes figurent dans le [registre de projection](certificats-projection-six.tsv). Les 21 verdicts UNSAT ont chacun un certificat DRAT vérifié. Les huit autres recherches ont atteint leur limite de temps. Les formules de groupe ont utilisé 45 secondes, et les lots de 2 + 2 + 2 ont utilisé 55 secondes.
+
+- Parmi les 4 724 orbites compatibles avec neuf centres droites, les six couples (h, u) autres que (2, 0) sont exclus par les certificats de groupe. Il faut donc exactement deux ET internes et aucun ET exposé non productif dans ce sous-cas.
+- La formule de groupe pour (2, 0) a donné UNKNOWN. Les quatre orbites 3 + 3 sont néanmoins exclues par leur formule dédiée. Dans la répartition 2 + 2 + 2, les lots 2 et 8 certifient l’exclusion de dix des 58 orbites. Les six autres lots, soit 48 orbites, restent sans verdict dans ce profil.
+- Les autres arrangements des centres doivent encore être traités. Le seuil de 43 portes reste ouvert.
+
+Les 28 CNF des certificats antérieurs à cinq arêtes gardent exactement les mêmes empreintes après cette extension.
