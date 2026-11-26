@@ -333,9 +333,12 @@ if(cmd==='relaxed-control'){
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
   if(depthEquality&&(![3,4].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
     throw Error('Depth equality needs three or four deep edges at 43 gates without fixed edit distance');
+  const tightDepth=process.env.AFFINE_DEPTH_TIGHT==='1';
+  if(tightDepth&&(!depthEquality||deepEdgeCount!==4))
+    throw Error('Tight depth needs exactly four deep edges');
   const deepLinePattern=process.env.AFFINE_DEEP_LINE_PATTERN;
   if(deepLinePattern&&(!depthEquality||
-    !(deepEdgeCount===3?['two-plus-one','distinct']:['single']).includes(deepLinePattern)))
+    !(deepEdgeCount===3?['two-plus-one','distinct']:['single','split']).includes(deepLinePattern)))
     throw Error('Unsupported deep line pattern for the requested equality case');
   const fixedLineEdges=deepLinePattern==='single'?edges.flatMap(([,line],i)=>line===half?[i]:[]):[];
   if(deepLinePattern==='single'&&(fixedLineEdges.length!==4||
@@ -425,6 +428,49 @@ if(cmd==='relaxed-control'){
         atMost(inner,3);
       }
       atMost(gates.map(g=>g.type),deepEdgeCount+8);
+      if(deepLinePattern==='split'){
+        for(const line of lines.keys()){
+          add(...chosen.flatMap(selection=>edges.flatMap(([,wire],i)=>
+            wire!==half+line?[selection[i]]:[]
+          )));
+        }
+      }
+      if(tightDepth){
+        function orOnlyOperands(inputs){
+          const values=[...inputs];
+          return gates.map(g=>{
+            const left=v(),right=v(),value=v();
+            for(let i=0;i<values.length;i++){
+              add(-g.a[i],-left,values[i]);add(-g.a[i],left,-values[i]);
+              add(-g.b[i],-right,values[i]);add(-g.b[i],right,-values[i]);
+            }
+            add(-value,-g.type);add(-value,left,right);
+            add(value,g.type,-left);add(value,g.type,-right);
+            values.push(value);
+            return [left,right];
+          });
+        }
+        const allOperands=orOnlyOperands(Array(n).fill(truth));
+        const lineOperands=lines.map((_,j)=>orOnlyOperands(
+          Array.from({length:n},(_,i)=>i===half+j?truth:-truth)
+        ));
+        const pointCenters=[];
+        const productive=gates.map((g,j)=>{
+          const flag=v(), [left,right]=allOperands[j];
+          add(-flag,g.type);add(-flag,exposed[j]);add(-flag,left);add(-flag,right);
+          add(flag,-g.type,-exposed[j],-left,-right);
+          for(let side=0;side<2;side++){
+            const witness=v();
+            add(-witness,flag);
+            const support=lineOperands.map(operands=>operands[j][side]);
+            for(let i=0;i<support.length;i++)add(-witness,...support.filter((_,k)=>i!==k));
+            pointCenters.push(witness);
+          }
+          return flag;
+        });
+        atMost(productive.map(wire=>-wire),s-10);
+        add(...pointCenters);
+      }
       if(deepLinePattern&&deepEdgeCount===3){
         const lineChoices=chosen.map(selection=>{
           const choices=lines.map(v);

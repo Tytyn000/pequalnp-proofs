@@ -148,3 +148,47 @@ kissat --time=70 affine43-exactement-quatre-single.cnf
 Pour régénérer à l’identique les anciens encodages d’exactement trois arêtes profondes, utiliser le générateur du commit `3636d26`.
 
 Les deux recherches ont rendu UNKNOWN après 70 secondes chacune. En portant temporairement le seuil à 45 portes, le mode sur une seule droite a accepté le témoin exact à 45 portes dont quatre arêtes profondes sont sur la première droite. Il a rejeté le témoin exact à 44 portes, qui n’a aucune arête profonde.
+
+## Quatre arêtes profondes et dix ET productifs
+
+Si m = 32 et t = 10, alors h = 1, et l’ensemble U des portes du comptage initial contient au moins 41 portes. Ce cas impose deux conditions supplémentaires. Les arêtes profondes doivent occuper plusieurs droites, et au moins un ET productif doit avoir un support de voisins contenant deux droites ou plus, donc avoir nécessairement un point pour centre.
+
+### Plusieurs droites sont nécessaires
+
+Supposons que les quatre arêtes profondes soient toutes sur une droite L, et appelons Q ses quatre points. L ne peut pas être un centre productif, puisque aucune de ses incidences n’est acceptée par l’évaluation limitée.
+
+On reprend le raisonnement par chemins de OU depuis l’unique ET interne G jusqu’au premier ET exposé E vrai sur une arête profonde. Quand E est productif, un chemin qui traverse uniquement des OU de U ajoute un terminal vide au comptage de son centre. Si |U| ≥ 42, aucune autre porte que G n’est disponible hors de U et au plus un centre peut recevoir G. Son opérande de centre est alors une entrée primaire. Une droite autre que L est inactive sur les quatre arêtes, et un point ne peut couvrir qu’une seule d’entre elles. Ce cas est impossible.
+
+Il reste |U| = 41 et une porte S hors de U autre que G. Pour chaque arête profonde, ou bien E est S et est non productif, ou bien E est productif et reçoit G par un chemin de OU passant par S. Un OU de U non exposé ne peut lire directement G, car il introduirait un terminal vide dans son propre comptage. Si S est un OU, il a un support singleton. Un support plus grand impliquerait que S lui-même est compté dans U sur le chemin vers E. Un support vide ferait de S un terminal vide du parcours de comptage des voisins.
+
+Chaque fil vivant a au plus un point de Q dans son support. Pour les OU de voisins d’un centre point, le support ne contient que des droites. Pour ceux d’un centre droite, ce centre est différent de L, donc au plus un de ses points est dans Q. Les autres portes ont des supports vides ou singletons. G est le premier ET vrai sur chacune des quatre arêtes profondes. Chacun de ses deux opérandes doit donc, par son support, rencontrer chacune des quatre paires {L, q}. Les deux supports contiennent L, donc G est vrai sur le singleton L.
+
+- Si S est l’ET exposé non productif, il doit accepter les quatre arêtes. Pour chacune, l’un de ses opérandes est faux sur le singleton L et vrai sur la paire {L, q}. En remontant par des OU, cette valeur vraie ne peut provenir que de q. Les autres sources possibles sont l’entrée L, G et les ET exposés antérieurs. Les deux premières sont déjà vraies sur le singleton L, et les ET exposés antérieurs sont faux sur la paire. Seul l’opérande de support non vide de S peut donc fournir q. Il ne peut en fournir qu’un.
+- Si S est un OU de support {p} pour un point p, il peut atteindre l’opérande de voisins d’un centre droite, ou l’opérande de centre d’un terme centré sur p. Dans le premier cas, l’entrée primaire de la droite est inactive sur les paires considérées. Dans le second, l’opérande de voisins est vrai grâce à l’entrée L. Il ne peut recevoir G via S car son support ne contient que des droites. Il ne peut non plus recevoir G en contournant S, puisqu’aucun OU de U non exposé ne lit G directement et qu’un opérande productif a un support non vide. L’ET serait donc vrai sur le singleton L, puisque son autre opérande y reçoit G.
+- Si S est un OU de support {A} pour une droite A, il peut atteindre l’opérande de voisins d’un centre point q, ou l’opérande de centre d’un terme centré sur A. Dans le premier cas, le centre est une entrée primaire, donc q appartient à Q, et le support de voisins impose que q appartienne à A. Dans le second, l’opérande de voisins ne peut recevoir G via S, car son support ne contient que des points, ni en contournant S. Il doit être vrai grâce à l’entrée q, et q appartient là encore à A. La droite A est distincte de L, puisque L ne peut être ni un centre productif ni un voisin peu profond d’un q de Q. Ces termes ne peuvent donc fournir que l’unique point éventuel d’intersection de A et L.
+
+Dans les trois cas, S permet au plus une des quatre arêtes, ce qui est impossible.
+
+### Un centre point est nécessaire
+
+Supposons qu’on puisse orienter les dix termes productifs de sorte qu’ils soient tous centrés sur des droites. Le raisonnement de la section sur m = 33, pour des arêtes réparties sur plusieurs droites, s’applique sans changement de budget. Il utilise |U| ≥ 41, un unique ET interne G et des supports de voisins formés uniquement de points.
+
+Si |U| ≥ 42, au plus un centre peut recevoir G et toutes les arêtes profondes seraient sur sa droite. Sinon, l’unique porte S restante est en aval de G et chaque arête profonde en dépend. En amont de G, tout support est composé uniquement de points ou est un singleton droite. Comme les arêtes occupent plusieurs droites et que G est le premier ET vrai sur chacune, les deux supports de G sont composés de points et G est vrai sur le singleton q de chaque arête profonde.
+
+Un S non productif accepterait un singleton q, sauf si l’un de ses opérandes a pour support une droite, auquel cas les arêtes profondes seraient toutes sur cette droite. Un S qui calcule un centre droite ne peut faire accepter une arête profonde sans que le terme accepte aussi le singleton q. Un S de support singleton point p ne peut alimenter que les opérandes de voisins. Toutes les droites ainsi atteintes contiennent à la fois p et chaque point profond q, qui est distinct de p. Elles seraient donc la même droite. Ces arguments autorisent plusieurs termes pour un même centre. Les conclusions reposent sur le nombre de droites distinctes, ou sur le rejet des singletons.
+
+Il existe donc un terme impossible à centrer sur une droite. Pour un biclique non vide sans cycle de longueur quatre, cela signifie que son opérande de voisins a au moins deux droites dans son support et que son centre est un point.
+
+### Encodage SAT
+
+`AFFINE_DEPTH_TIGHT=1` exige au moins dix ET productifs et un terme dont l’opérande de voisins contient au moins deux droites dans son support. Le nombre de termes est alors exactement dix à 43 portes, par le comptage précédent. `AFFINE_DEEP_LINE_PATTERN=split` exige que les arêtes profondes occupent plusieurs droites.
+
+```sh
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEPTH_TIGHT=1 AFFINE_DEEP_LINE_PATTERN=split \
+  node frontiere.cjs build affine43-dix-productifs-split.cnf 43 197 ordered
+kissat --time=60 affine43-dix-productifs-split.cnf
+```
+
+L’essai a rendu UNKNOWN après 60 secondes. Deux essais antérieurs, avec le même seuil de dix ET productifs et la même condition de centre point, avaient aussi rendu UNKNOWN après 65 secondes. Le premier ne fixait aucune répartition, le second imposait une seule droite, cas ensuite exclu par la démonstration.
+
+Pour contrôler la polarité des options, le seuil de taille a été temporairement porté à 47 portes. Le circuit de contrôle gardait quatre arêtes profondes sur la première droite en recopiant son ET de tête. Deux arêtes auparavant couvertes par des termes centrés sur leurs droites ont été regroupées sous leur point commun. Un autre terme centré sur une droite a été scindé. Le circuit résultant est exact sur la frontière et a dix ET productifs. Le mode `single` l’a accepté et le mode `split` l’a rejeté.
