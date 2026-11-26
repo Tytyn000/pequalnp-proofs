@@ -192,3 +192,47 @@ kissat --time=60 affine43-dix-productifs-split.cnf
 L’essai a rendu UNKNOWN après 60 secondes. Deux essais antérieurs, avec le même seuil de dix ET productifs et la même condition de centre point, avaient aussi rendu UNKNOWN après 65 secondes. Le premier ne fixait aucune répartition, le second imposait une seule droite, cas ensuite exclu par la démonstration.
 
 Pour contrôler la polarité des options, le seuil de taille a été temporairement porté à 47 portes. Le circuit de contrôle gardait quatre arêtes profondes sur la première droite en recopiant son ET de tête. Deux arêtes auparavant couvertes par des termes centrés sur leurs droites ont été regroupées sous leur point commun. Un autre terme centré sur une droite a été scindé. Le circuit résultant est exact sur la frontière et a dix ET productifs. Le mode `single` l’a accepté et le mode `split` l’a rejeté.
+
+## Orbites des quatre arêtes profondes
+
+Les 58 905 ensembles de quatre arêtes se regroupent en **173 orbites** sous les 432 automorphismes de l’incidence affine. Chaque orbite contient les ensembles obtenus par renumérotation des points et des droites. La répartition par droite est conservée.
+
+| Arêtes profondes par droite | Ensembles | Orbites |
+| --- | ---: | ---: |
+| 4 | 9 | 1 |
+| 3 + 1 | 1 152 | 5 |
+| 2 + 2 | 1 296 | 6 |
+| 2 + 1 + 1 | 24 192 | 66 |
+| 1 + 1 + 1 + 1 | 32 256 | 95 |
+| **Total** | **58 905** | **173** |
+
+Le programme énumère les permutations des neuf droites qui préservent les voisinages. Chacune induit une permutation des douze points, leurs voisinages étant distincts. Les représentants sont les premiers quadruplets d’indices d’arêtes dans l’ordre lexicographique, avec les quatre indices triés. Les chiffres ont été vérifiés indépendamment avec les 432 applications affines inversibles de F₃², en utilisant les coordonnées du plan dual.
+
+Avec dix ET productifs, seules les 172 orbites à plusieurs droites restent possibles. On peut aussi borner le nombre de centres points en fonction de la répartition. Un terme à une seule incidence peut être orienté sur l’un ou l’autre de ses sommets, et les bornes ci-dessous valent pour chaque choix d’orientation.
+
+| Arêtes profondes par droite | Centres distincts | Centres points distincts |
+| --- | --- | --- |
+| 3 + 1 | 9 ou 10 | 1 à 3 |
+| 2 + 2 | 10 | 1 à 3 |
+| 2 + 1 + 1 | 10 | 1 ou 2 |
+| 1 + 1 + 1 + 1 | 10 | 1 |
+
+En effet, neuf centres dont au moins un point imposent trois arêtes profondes sur la seule droite sans centre. Avec dix centres et deux points, la seule droite sans centre ne peut avoir que deux arêtes peu profondes au plus. Avec trois points, les deux droites sans centre reçoivent au plus quatre incidences de ces points, car elles ont au plus un point commun. Elles portent alors les quatre arêtes profondes. Comme aucune ne peut recevoir plus de trois incidences peu profondes, seules les répartitions 3 + 1 et 2 + 2 subsistent dans ce cas.
+
+L’option `AFFINE_DEEP_ORBIT=all` limite les quatre arêtes aux représentants. Une valeur numérique sélectionne une orbite. Le même circuit peut être renuméroté pour prendre le représentant de son orbite, et l’ordre topologique des portes peut ensuite être choisi selon les règles de `ordered`. Ce quotient conserve donc l’existence d’une solution. Les essais avec un numéro donné couvrent uniquement cette orbite.
+
+```sh
+node frontiere.cjs four-deep-orbits
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_ORBIT=all \
+  node frontiere.cjs build affine43-orbites-quatre-all.cnf 43 197 ordered
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEPTH_TIGHT=1 AFFINE_DEEP_LINE_PATTERN=split AFFINE_DEEP_ORBIT=all \
+  node frontiere.cjs build affine43-orbites-quatre-dix.cnf 43 197 ordered
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_ORBIT=1 \
+  node frontiere.cjs build affine43-orbites-quatre-representant-1.cnf 43 197 ordered
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_ORBIT=173 \
+  node frontiere.cjs build affine43-orbites-quatre-concentre.cnf 43 197 ordered
+```
+
+Le représentant 173 est l’unique orbite où les quatre arêtes sont sur une même droite.
+
+Les quatre essais ont rendu UNKNOWN après 65 secondes chacun avec Kissat. Pour contrôler l’option numérique, le seuil a été temporairement porté à 45 portes. Le circuit exact à 45 portes obtenu en recopiant un ET de tête a été accepté avec le représentant 173 et rejeté avec le représentant 1. Les quatre arêtes profondes de ce témoin appartiennent à la première droite.

@@ -48,6 +48,40 @@ function automorphisms(){
   visit(0);
   return permutations;
 }
+function fourDeepOrbits(){
+  if(edges.length!==36)throw Error('Four-edge orbits require the complete affine graph');
+  const edgeIndices=new Map(edges.map((edge,i)=>[edge.join(','),i]));
+  const images=automorphisms().map(permutation=>edges.map(([point,line])=>
+    edgeIndices.get([permutation[point],permutation[line]].join(','))
+  ));
+  if(!images.length||images.some(image=>new Set(image).size!==edges.length||image.includes(undefined)))
+    throw Error('Expected permutations of all 36 edges');
+  const seen=new Set(), representatives=[];
+  for(let a=0;a<edges.length;a++){
+    for(let b=a+1;b<edges.length;b++){
+      for(let c=b+1;c<edges.length;c++){
+        for(let d=c+1;d<edges.length;d++){
+          const indices=[a,b,c,d];
+          if(seen.has(indices.join(',')))continue;
+          const orbit=new Set(images.map(image=>indices.map(i=>image[i]).sort((x,y)=>x-y).join(',')));
+          if(!orbit.has(indices.join(','))||images.length%orbit.size)
+            throw Error('Invalid orbit for the affine automorphism group');
+          for(const member of orbit)seen.add(member);
+          const byLine=new Map();
+          for(const i of indices){
+            const line=edges[i][1];
+            byLine.set(line,(byLine.get(line)??0)+1);
+          }
+          const pattern=[...byLine.values()].sort((x,y)=>y-x).join('+');
+          representatives.push({indices,pattern,size:orbit.size});
+        }
+      }
+    }
+  }
+  if(seen.size!==58905||representatives.reduce((sum,rep)=>sum+rep.size,0)!==seen.size)
+    throw Error('Expected a partition of all four-edge sets');
+  return {automorphismCount:images.length,representatives};
+}
 function quartetAutomorphisms(){
   function permutations(items){
     if(!items.length)return [[]];
@@ -263,6 +297,9 @@ if(cmd==='relaxed-control'){
       choices.filter(c=>c.usesFirst===dep&&c.op===op).length));
     console.log(JSON.stringify({first:[a,b,op],usesAnd:counts[0],usesOr:counts[1],externalAnd:counts[2],externalOr:counts[3]}));
   }
+} else if(cmd==='four-deep-orbits'){
+  const {automorphismCount,representatives}=fourDeepOrbits();
+  console.log(JSON.stringify({automorphismCount,representatives},null,2));
 } else if(cmd==='orbits'){
   for(const [a,b] of [[0,1],[0,2],[0,12],[0,13],[12,13]]){
     const {size,pairs}=canonicalSecond(a,b);
@@ -340,6 +377,9 @@ if(cmd==='relaxed-control'){
   if(deepLinePattern&&(!depthEquality||
     !(deepEdgeCount===3?['two-plus-one','distinct']:['single','split']).includes(deepLinePattern)))
     throw Error('Unsupported deep line pattern for the requested equality case');
+  const deepOrbit=process.env.AFFINE_DEEP_ORBIT;
+  if(deepOrbit!==undefined&&(!depthEquality||deepEdgeCount!==4||deepLinePattern==='single'))
+    throw Error('Deep orbits require exactly four edges without a fixed line');
   const fixedLineEdges=deepLinePattern==='single'?edges.flatMap(([,line],i)=>line===half?[i]:[]):[];
   if(deepLinePattern==='single'&&(fixedLineEdges.length!==4||
     new Set(automorphisms().map(permutation=>permutation[half])).size!==lines.length))
@@ -380,6 +420,22 @@ if(cmd==='relaxed-control'){
     });
     for(let j=0;j<chosen.length;j++)for(let k=0;k<j;k++){
       for(let i=0;i<edges.length;i++)add(-chosen[j][i],-chosen[k][i]);
+    }
+    if(deepOrbit!==undefined){
+      const {representatives}=fourDeepOrbits();
+      const orbitNumber=Number(deepOrbit);
+      if(deepOrbit!=='all'&&(!Number.isInteger(orbitNumber)||orbitNumber<1||orbitNumber>representatives.length))
+        throw Error('Deep orbit must be all or a one-based representative number');
+      const allowed=representatives.filter((rep,i)=>
+        (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')
+      );
+      if(!allowed.length)throw Error('No orbit matches the deep-line pattern');
+      const witnesses=allowed.map(({indices})=>{
+        const witness=v();
+        indices.forEach((edge,j)=>add(-witness,chosen[j][edge]));
+        return witness;
+      });
+      one(witnesses);
     }
     if(depthEquality){
       for(const [i,edge] of edges.entries()){
