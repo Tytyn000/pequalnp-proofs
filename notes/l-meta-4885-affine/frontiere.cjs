@@ -56,38 +56,58 @@ function possibleTightBridge(indices){
     line!==half+i&&(rows[point]&(1<<i))
   ));
 }
-function fourDeepOrbits(){
-  if(edges.length!==36)throw Error('Four-edge orbits require the complete affine graph');
+function possibleDoubleStar(indices){
+  const selected=indices.map(i=>edges[i]);
+  const points=new Set(selected.map(([point])=>point));
+  const lines=new Set(selected.map(([,line])=>line));
+  const allLines=Array.from(lines).reduce((mask,line)=>mask|(1<<(line-half)),0);
+  const universalPoints=new Set(Array.from(points).filter(point=>(rows[point]&allLines)===allLines));
+  const universalLines=new Set(Array.from(lines).filter(line=>
+    Array.from(points).every(point=>rows[point]&(1<<(line-half)))
+  ));
+  return selected.every(([point,line])=>universalPoints.has(point)||universalLines.has(line));
+}
+function deepEdgeOrbits(edgeCount){
+  if(edges.length!==36||![4,5].includes(edgeCount))
+    throw Error('Deep-edge orbits require four or five edges of the complete affine graph');
   const edgeIndices=new Map(edges.map((edge,i)=>[edge.join(','),i]));
   const images=automorphisms().map(permutation=>edges.map(([point,line])=>
     edgeIndices.get([permutation[point],permutation[line]].join(','))
   ));
   if(!images.length||images.some(image=>new Set(image).size!==edges.length||image.includes(undefined)))
     throw Error('Expected permutations of all 36 edges');
-  const seen=new Set(), representatives=[];
-  for(let a=0;a<edges.length;a++){
-    for(let b=a+1;b<edges.length;b++){
-      for(let c=b+1;c<edges.length;c++){
-        for(let d=c+1;d<edges.length;d++){
-          const indices=[a,b,c,d];
-          if(seen.has(indices.join(',')))continue;
-          const orbit=new Set(images.map(image=>indices.map(i=>image[i]).sort((x,y)=>x-y).join(',')));
-          if(!orbit.has(indices.join(','))||images.length%orbit.size)
-            throw Error('Invalid orbit for the affine automorphism group');
-          for(const member of orbit)seen.add(member);
-          const byLine=new Map();
-          for(const i of indices){
-            const line=edges[i][1];
-            byLine.set(line,(byLine.get(line)??0)+1);
-          }
-          const pattern=[...byLine.values()].sort((x,y)=>y-x).join('+');
-          representatives.push({indices,pattern,size:orbit.size,tightBridge:possibleTightBridge(indices)});
-        }
+  const seen=new Set(), representatives=[], selected=[];
+  function visit(start){
+    if(selected.length<edgeCount){
+      const last=edges.length-edgeCount+selected.length;
+      for(let i=start;i<=last;i++){
+        selected.push(i);
+        visit(i+1);
+        selected.pop();
       }
+      return;
     }
+    const key=selected.join(',');
+    if(seen.has(key))return;
+    const orbit=new Set(images.map(image=>selected.map(i=>image[i]).sort((x,y)=>x-y).join(',')));
+    if(!orbit.has(key)||images.length%orbit.size)
+      throw Error('Invalid orbit for the affine automorphism group');
+    for(const member of orbit)seen.add(member);
+    const byLine=new Map();
+    for(const i of selected){
+      const line=edges[i][1];
+      byLine.set(line,(byLine.get(line)??0)+1);
+    }
+    const pattern=[...byLine.values()].sort((x,y)=>y-x).join('+');
+    const representative={indices:[...selected],pattern,size:orbit.size};
+    if(edgeCount===4)representative.tightBridge=possibleTightBridge(selected);
+    else representative.doubleStar=possibleDoubleStar(selected);
+    representatives.push(representative);
   }
-  if(seen.size!==58905||representatives.reduce((sum,rep)=>sum+rep.size,0)!==seen.size)
-    throw Error('Expected a partition of all four-edge sets');
+  visit(0);
+  const expected=edgeCount===4?58905:376992;
+  if(seen.size!==expected||representatives.reduce((sum,rep)=>sum+rep.size,0)!==seen.size)
+    throw Error('Expected a partition of all deep-edge sets');
   return {automorphismCount:images.length,representatives};
 }
 function quartetAutomorphisms(){
@@ -305,8 +325,8 @@ if(cmd==='relaxed-control'){
       choices.filter(c=>c.usesFirst===dep&&c.op===op).length));
     console.log(JSON.stringify({first:[a,b,op],usesAnd:counts[0],usesOr:counts[1],externalAnd:counts[2],externalOr:counts[3]}));
   }
-} else if(cmd==='four-deep-orbits'){
-  const {automorphismCount,representatives}=fourDeepOrbits();
+} else if(cmd==='four-deep-orbits'||cmd==='five-deep-orbits'){
+  const {automorphismCount,representatives}=deepEdgeOrbits(cmd==='four-deep-orbits'?4:5);
   console.log(JSON.stringify({automorphismCount,representatives},null,2));
 } else if(cmd==='orbits'){
   for(const [a,b] of [[0,1],[0,2],[0,12],[0,13],[12,13]]){
@@ -376,19 +396,20 @@ if(cmd==='relaxed-control'){
   }
   const deepEdgeCount=Number(process.env.AFFINE_MIN_DEEP_EDGES??(process.env.AFFINE_TWO_DEEP_EDGES==='1'?2:0));
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
-  if(depthEquality&&(![3,4].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
-    throw Error('Depth equality needs three or four deep edges at 43 gates without fixed edit distance');
+  if(depthEquality&&(![3,4,5].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
+    throw Error('Depth equality needs three to five deep edges at 43 gates without fixed edit distance');
+  const fiveEquality=depthEquality&&deepEdgeCount===5;
   const compactDepth=process.env.AFFINE_COMPACT_DEPTH==='1';
   if(compactDepth&&!depthEquality)throw Error('Compact depth needs an exact deep edge count');
   const tightDepth=process.env.AFFINE_DEPTH_TIGHT==='1';
   if(tightDepth&&(!depthEquality||deepEdgeCount!==4))
     throw Error('Tight depth needs exactly four deep edges');
   const maxNine=process.env.AFFINE_DEPTH_MAX_NINE==='1';
-  if(maxNine&&(!depthEquality||deepEdgeCount!==4||tightDepth))
-    throw Error('The nine-term bound needs the four-edge equality case without a ten-term minimum');
+  if(maxNine&&(!depthEquality||![4,5].includes(deepEdgeCount)||tightDepth))
+    throw Error('The nine-term bound needs four or five deep edges without a ten-term minimum');
   const deepLinePattern=process.env.AFFINE_DEEP_LINE_PATTERN;
   if(deepLinePattern&&(!depthEquality||
-    !(deepEdgeCount===3?['two-plus-one','distinct']:['single','split']).includes(deepLinePattern)))
+    !(deepEdgeCount===3?['two-plus-one','distinct']:deepEdgeCount===4?['single','split']:['split']).includes(deepLinePattern)))
     throw Error('Unsupported deep line pattern for the requested equality case');
   const tightAccounting=process.env.AFFINE_TIGHT_ACCOUNTING==='1';
   if(tightAccounting&&(!tightDepth||deepLinePattern!=='split'))
@@ -397,15 +418,18 @@ if(cmd==='relaxed-control'){
   if(tightDisjoint&&(!tightAccounting||!compactDepth))
     throw Error('Disjoint terms need tight accounting and compact depth');
   const linearSplit=process.env.AFFINE_LINEAR_SPLIT==='1';
-  if(linearSplit&&(!maxNine||!compactDepth||deepLinePattern!=='split'))
+  if(linearSplit&&(!maxNine||deepEdgeCount!==4||!compactDepth||deepLinePattern!=='split'))
     throw Error('Linear split needs compact depth, the nine-term bound and several deep lines');
   const excludeTriple=process.env.AFFINE_EXCLUDE_DEEP_TRIPLE==='1';
   const deepOrbit=process.env.AFFINE_DEEP_ORBIT;
 
   if(excludeTriple&&(!linearSplit||deepOrbit===undefined))
     throw Error('Excluding deep triples needs linear split and orbit selection');
-  if(deepOrbit!==undefined&&(!depthEquality||deepEdgeCount!==4||deepLinePattern==='single'))
-    throw Error('Deep orbits require exactly four edges without a fixed line');
+  if(deepOrbit!==undefined&&(!depthEquality||![4,5].includes(deepEdgeCount)||deepLinePattern==='single'))
+    throw Error('Deep orbits require exactly four or five edges without a fixed line');
+  const deepPartition=process.env.AFFINE_DEEP_PARTITION;
+  if(deepPartition&&(!fiveEquality||deepOrbit===undefined))
+    throw Error('A deep partition requires five-edge orbit selection');
   const tightBridge=process.env.AFFINE_TIGHT_BRIDGE==='1';
   if(tightBridge&&(!tightDisjoint||deepOrbit===undefined))
     throw Error('The tight bridge filter needs disjoint terms and deep-edge orbits');
@@ -452,19 +476,22 @@ if(cmd==='relaxed-control'){
     for(let j=0;j<chosen.length;j++)for(let k=0;k<j;k++){
       for(let i=0;i<edges.length;i++)add(-chosen[j][i],-chosen[k][i]);
     }
+    const spreadOrbitWitnesses=[];
     if(deepOrbit!==undefined){
-      const {representatives}=fourDeepOrbits();
+      const {representatives}=deepEdgeOrbits(deepEdgeCount);
       const orbitNumber=Number(deepOrbit);
       if(deepOrbit!=='all'&&(!Number.isInteger(orbitNumber)||orbitNumber<1||orbitNumber>representatives.length))
         throw Error('Deep orbit must be all or a one-based representative number');
       const allowed=representatives.filter((rep,i)=>
         (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')&&
-        (!tightBridge||rep.tightBridge)&&(!excludeTriple||rep.pattern!=='3+1')
+        (!tightBridge||rep.tightBridge)&&(!excludeTriple||rep.pattern!=='3+1')&&
+        (!deepPartition||rep.pattern===deepPartition)
       );
       if(!allowed.length)throw Error('No orbit matches the deep-line pattern');
-      const witnesses=allowed.map(({indices})=>{
+      const witnesses=allowed.map(({indices,pattern})=>{
         const witness=v();
         indices.forEach((edge,j)=>add(-witness,chosen[j][edge]));
+        if(fiveEquality&&pattern!=='4+1')spreadOrbitWitnesses.push(witness);
         return witness;
       });
       one(witnesses);
@@ -533,7 +560,7 @@ if(cmd==='relaxed-control'){
           }
         }
       }
-      function atMost(wires,limit){
+      function atMost(wires,limit,condition=truth){
         let counts=Array(limit+2).fill(-truth);
         counts[0]=truth;
         for(const wire of wires){
@@ -545,7 +572,7 @@ if(cmd==='relaxed-control'){
           }
           counts=next;
         }
-        add(-counts[limit+1]);
+        add(...(condition===truth?[]:[-condition]),-counts[limit+1]);
       }
       if(deepEdgeCount===3||tightAccounting){
         one(inner);
@@ -554,7 +581,7 @@ if(cmd==='relaxed-control'){
         atMost(inner,linearSplit?2:3);
         if(linearSplit)for(const gate of inner.keys())add(...inner.filter((_,j)=>j!==gate));
       }
-      atMost(gates.map(g=>g.type),tightAccounting||maxNine?11:deepEdgeCount+8);
+      atMost(gates.map(g=>g.type),tightAccounting||maxNine||fiveEquality?11:deepEdgeCount+8);
       if(deepLinePattern==='split'){
         for(const line of lines.keys()){
           add(...chosen.flatMap(selection=>edges.flatMap(([,wire],i)=>
@@ -562,7 +589,7 @@ if(cmd==='relaxed-control'){
           )));
         }
       }
-      if(tightDepth||maxNine){
+      if(tightDepth||maxNine||fiveEquality){
         const allOperands=orOnlyOperands(Array(n).fill(truth));
         const lineOperands=!tightDepth?[]:singletonOperands?singletonOperands.slice(half):
           lines.map((_,j)=>orOnlyOperands(Array.from({length:n},(_,i)=>i===half+j?truth:-truth)));
@@ -584,6 +611,14 @@ if(cmd==='relaxed-control'){
         if(tightDepth){
           atMost(productive.map(wire=>-wire),s-10);
           add(...pointCenters);
+        }else if(fiveEquality){
+          atMost([...productive,...inner],11);
+          if(spreadOrbitWitnesses.length){
+            const spread=v();
+            for(const witness of spreadOrbitWitnesses)add(-witness,spread);
+            atMost(productive.map(wire=>-wire),s-9,spread);
+          }
+          if(maxNine)atMost(productive,9);
         }else{
           atMost(productive,9);
           function centerWitnesses(vertex){

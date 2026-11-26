@@ -396,3 +396,73 @@ done
 ```
 
 Ces trois essais ont rendu UNKNOWN après 75 secondes chacun. Pour contrôler le nouveau filtre, on a conservé les quatre arêtes profondes du témoin exact à 45 portes et rendu une incidence supplémentaire profonde dans une deuxième étoile, en plaçant son ET avant le OU de voisins. Le circuit résultant à 46 portes est exact sur la frontière et a cinq arêtes profondes. Le filtre a accepté celui-ci et rejeté le témoin exact à quatre arêtes profondes.
+
+## Cas de cinq arêtes profondes
+
+Avec exactement cinq arêtes profondes et 43 portes, il y a **huit ou neuf ET productifs, au plus trois ET internes et au plus onze ET en tout**. Huit centres distincts imposent la répartition 4 + 1. Les autres répartitions exigent exactement neuf ET productifs.
+
+### Une unité supplémentaire dans le comptage
+
+Pour un circuit exact à 43 portes avec au moins cinq arêtes profondes, on a m + t + h ≤ 42. En effet, supposons m + t + h = 43, le maximum admis par le comptage précédent. Alors u = 0 par s ≥ m + t + h + 2u − 1. Il y a au plus une porte hors de U en plus des h ET internes. Notons Q l’ensemble des points profonds et R celui des droites profondes. Chacun a au moins deux éléments puisqu’aucun sommet n’a cinq incidences.
+
+Si |U| ≥ m + t, aucun troisième type de porte n’est disponible. Sur chaque arête profonde, le premier ET exposé vrai est productif et reçoit un ET interne par des OU comptés. Chaque centre ainsi atteint ajoute un terminal vide dans son comptage. Comme |U| ≤ m + t, un seul centre peut être atteint. Ses termes ont pour opérande de centre l’entrée primaire correspondante. Ils ne peuvent pas expliquer cinq arêtes profondes.
+
+On a donc |U| = m + t − 1 et un OU S hors de U. Aucun OU de U ne lit directement un ET interne, car il ajouterait un terminal vide. Tout chemin de OU qui fait parvenir la valeur d’un ET interne à un ET productif traverse S. Comme précédemment, S a un support singleton. Un support plus grand ferait compter S parmi les voisins. Un support vide ajouterait un terminal vide au comptage d’un opérande productif.
+
+Le dernier ET interne H doit être lu directement par S. Un OU de U ne peut le lire et un ET exposé qui le lirait directement serait non productif. L’autre opérande de S est l’entrée primaire de son support singleton, puisque tous les autres OU ont des supports vides ou de taille au moins deux. Les autres ET internes doivent alimenter H à travers des ET internes, puisqu’ils sont vivants et n’ont pas d’autre lecteur disponible. Ainsi H est la conjonction de signaux dont chacun est une entrée primaire ou un fil en U. Tous ces signaux sont vrais sur toutes les arêtes profondes. Les ET exposés antérieurs au premier ET exposé vrai sont faux sur chacune de ces arêtes, et aucun OU de U ne reçoit directement un ET interne. Les signaux d’entrée de cette conjonction sont donc vrais grâce à leurs supports. Chaque support est contenu dans une part du graphe et doit contenir tous les sommets profonds de sa part. H est vrai sur toutes les paires Q × R.
+
+Si S a pour support un point, pour chaque droite L de R, il existe un ET productif qui accepte une arête profonde sur L avec un opérande rendu vrai par S et l’autre grâce à l’entrée L. Cet autre opérande a un support de droites et ne peut recevoir un ET interne via S ou en le contournant. H vrai avec L suffit donc à faire accepter la paire. Si S a pour support une droite, l’argument est symétrique pour chaque point de Q. Dans les deux cas le circuit accepte Q × R, qui contient une non-incidence car le graphe est sans cycle de longueur quatre. Cela exclut m + t + h = 43.
+
+### Nombre total de ET pour exactement cinq arêtes profondes
+
+Pour m = 31, on obtient t + h ≤ 11, t ≥ 8 et t + h + 2u ≤ 13. On a donc h ≤ 3. Si le nombre total de ET dépasse onze, il faut u = 1 et t + h = 11. Ce cas impose |U| = m + t + u − 1 et aucune porte en plus des portes de U, des ET internes et du seul ET exposé non productif E. Aucun OU de U ne peut lire directement un ET interne, car le terminal vide supplémentaire ferait dépasser le budget.
+
+Aucun ET productif ne peut alors être le premier ET exposé vrai sur une arête profonde. Il devrait recevoir un ET interne par un chemin de OU, alors qu’un opérande productif a un support non vide. Donc E est le premier ET exposé vrai sur chacune des cinq arêtes. En remontant ses opérandes à travers les ET internes, on obtient une conjonction de signaux qui, sur chacune des cinq arêtes, sont vrais grâce à des supports contenus dans une seule part. Chaque support contient tous les sommets profonds de sa part. Comme dans le cas précédent, le circuit accepterait Q × R. Il y a donc au plus onze ET au total.
+
+### Dix termes productifs sont impossibles
+
+Supposons t = 10. Alors h = 1 et u = 0 d’après la borne sur le nombre total de ET. Appelons G l’unique ET interne. Il reste |U| ≥ 40 et au plus deux portes hors de U en plus de G.
+
+Supposons d’abord qu’une porte S₁ hors de U soit en amont de G. Si |U| ≥ 41, il ne reste aucune porte en aval pour transmettre G. Au plus un centre peut recevoir G par ses voisins, car chacun ajoute un terminal vide. Son signal de centre est vrai sur une arête profonde seulement si son sommet est actif, puisque c’est une entrée primaire ou un singleton calculé en amont du premier ET vrai G. Il ne peut couvrir cinq arêtes.
+
+Si |U| = 40, une unique porte supplémentaire S₂ en aval de G doit transmettre G par des OU vers les ET exposés. Un chemin qui contournait S₂ ajouterait un terminal vide. S₂ est un OU de support singleton par le même comptage que précédemment. Si son support est un point p, toutes les droites profondes contiennent p et aucun point profond n’est p. En effet, S₂ entre soit dans un opérande de centre p, soit dans les voisins d’un centre droite. L’autre opérande doit être vrai grâce à la droite de l’arête, et le terme correspondant accepte p et cette droite dans l’évaluation limitée. Chaque point profond est alors incident à une seule droite profonde, puisque deux droites profondes ont déjà p comme point commun. Sur toutes les paires Q × R, G vrai avec une droite profonde suffit à faire accepter la paire. Pour chaque sommet de Q ou R, G doit donc être faux sur son singleton. Pour une droite, sinon le singleton serait accepté directement. Pour un point, sinon une paire avec une autre droite profonde non incidente serait acceptée. Si le support de S₂ est une droite, le raisonnement est symétrique. Tous les points profonds lui appartiennent, les droites profondes en sont différentes et chacune ne contient qu’un point profond.
+
+Sur les paires profondes et les singletons, G calcule la conjonction de ses deux opérandes évalués sans ET précédents. Il est le premier ET vrai sur chaque paire profonde et les ET exposés rejettent tous les singletons. Les supports de ses opérandes, restreints à Q et R, sont disjoints, puisqu’il est faux sur tous ces singletons. Au plus un fil, S₁, peut avoir un support contenant à la fois un point et une droite. Si les deux opérandes étaient ce même fil, leurs supports ne pourraient pas être disjoints tout en acceptant les paires profondes. Au moins un opérande a donc son support dans une seule part. Pour rencontrer toutes les arêtes profondes, il doit contenir tous les sommets profonds de sa part. Par disjonction des supports, l’autre contient tous les sommets profonds de l’autre part. G est alors vrai sur Q × R, ce qui est interdit avec un seul singleton de transmission S₂.
+
+Il ne reste donc aucune porte hors de U en amont de G. Les deux supports, contenus chacun dans une part, font que G est vrai sur Q × R. Sur chaque paire profonde, le premier ET exposé vrai reçoit G par au moins un opérande via des OU. Il ne peut le recevoir par les deux, car il accepterait alors tout Q × R. L’autre opérande reçoit une entrée x active sur la paire, et x avec G suffit à faire accepter la paire. Ainsi chaque arête profonde a au moins un sommet incident à tous les sommets profonds de l’autre part. Appelons ces sommets universels dans Q × R.
+
+Il existe un point universel et une droite universelle. S’il n’y en avait que dans une part, l’absence de cycle de longueur quatre en autoriserait au plus un, dont le degré est inférieur à cinq. Pour la même raison de degré, on a besoin d’un ET exposé qui impose un point universel comme entrée x, et d’un autre qui impose une droite universelle. G doit donc être faux sur un singleton de chaque part, sinon l’un de ces ET exposés accepterait ce singleton. Ses deux supports ne peuvent être tous deux formés de points ou tous deux de droites, car G serait alors vrai sur tous les singletons profonds de cette part. Ils sont de parts opposées.
+
+Le support de points de G contient tout Q. Comme Q a au moins deux éléments, ce support appartient à un OU compté dans les voisins d’un centre droite A. La droite A est incidente à tout Q. Elle doit coïncider avec la droite universelle, car deux droites ne peuvent avoir deux points communs. Or le support du OU compté ne contient que des voisins peu profonds de A. La droite universelle porte au moins une arête profonde. Son point appartient à Q, donc au support de ce OU. Contradiction.
+
+### Centres et orbites
+
+Il faut au moins huit centres distincts pour couvrir 31 arêtes. Avec huit centres dont au moins deux points, la somme de leurs degrés est au plus 30. Avec sept centres droites et un centre point, les deux droites sans centre n’ont au plus que deux arêtes peu profondes fournies par ce point. Elles porteraient au moins six arêtes profondes. Avec huit centres, il faut donc huit droites, et la droite sans centre porte quatre arêtes profondes. Cela impose la répartition 4 + 1.
+
+Avec neuf centres distincts, si r sont des points, les r droites sans centre doivent recevoir au moins 4r − 5 incidences des points centres. Le degré trois des points impose r ≤ 5. Chaque droite sans centre portant d points centres fournit C(d, 2) paires distinctes. Puisque C(d, 2) ≥ 2d − 3 pour tout entier d, il faut au moins 5r − 10 paires parmi les C(r, 2) disponibles. Cela exclut r = 3, 4, 5. Pour r = 2, les deux droites sans centre reçoivent au plus trois incidences des deux points, faute de cycle de longueur quatre. On doit réaliser ces trois incidences, donnant deux arêtes profondes sur une droite et trois sur l’autre. Avec un seul centre point, la droite sans centre porte au moins trois arêtes profondes. Les répartitions dont le maximum est deux imposent donc neuf centres droites.
+
+Les 376 992 ensembles de cinq arêtes se réduisent à 964 orbites sous les 432 automorphismes de l’incidence affine. Une énumération indépendante par applications affines inversibles sur F₃² donne les mêmes totaux.
+
+| Arêtes profondes par droite | Ensembles | Orbites |
+| --- | ---: | ---: |
+| 4 + 1 | 288 | 2 |
+| 3 + 2 | 1 728 | 6 |
+| 3 + 1 + 1 | 16 128 | 47 |
+| 2 + 2 + 1 | 36 288 | 97 |
+| 2 + 1 + 1 + 1 | 193 536 | 472 |
+| 1 + 1 + 1 + 1 + 1 | 129 024 | 340 |
+| **Total** | **376 992** | **964** |
+
+Le catalogue indique aussi les orbites où chaque arête a un sommet universel dans Q × R. Il n’y en a que trois. C’était une restriction intermédiaire pour dix ET productifs, avant l’exclusion complète de ce cas.
+
+```sh
+node frontiere.cjs five-deep-orbits
+AFFINE_COMPACT_ROWS=1 AFFINE_COMPACT_DEPTH=1 AFFINE_MIN_DEEP_EDGES=5 AFFINE_DEPTH_EQUALITY=1 \
+  AFFINE_DEPTH_MAX_NINE=1 AFFINE_DEEP_ORBIT=all \
+  node frontiere.cjs build affine43-cinq-neuf-productifs-all.cnf 43 197 ordered
+kissat --time=80 affine43-cinq-neuf-productifs-all.cnf
+```
+
+`AFFINE_DEEP_PARTITION=4+1` ou `AFFINE_DEEP_PARTITION=3+2` limite la recherche aux orbites de cette répartition. Avec les orbites activées, le générateur impose au moins neuf ET productifs pour chaque répartition autre que 4 + 1.
+
+Les trois premiers essais sur exactement cinq arêtes profondes ont rendu UNKNOWN après 85 secondes, avec toutes les orbites puis avec les seules répartitions 4 + 1 et 3 + 2. Les trois essais avec le plafond de neuf ET productifs ont donné le même verdict après 80 secondes. Le contrôle à 46 portes, exact et à cinq arêtes profondes, a été accepté. En scindant deux termes peu profonds, on obtient un témoin exact à 48 portes avec le même profil et dix ET productifs. Il a été accepté avec les plafonds relâchés, puis rejeté lorsque le seul plafond de neuf ET productifs a été rétabli.
