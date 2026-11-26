@@ -14,9 +14,16 @@ const patterns = ['2+2+1', '2+1+1+1', '1+1+1+1+1'];
 const additionalPatterns = ['3+2', '3+1+1', '4+1'];
 const sixPatterns = ['3+3', '3+2+1', '3+1+1+1', '2+2+2', '2+2+1+1', '2+1+1+1+1', '1+1+1+1+1+1'];
 const tenPointCounts = new Map([
-  ['ten-repeat', 0], ['ten-one', 1], ['ten-nine', 9], ['ten-points', 10],
+  ['ten-repeat', 0], ['ten-one', 1], ['ten-two', 2], ['ten-three', 3], ['ten-four', 4],
+  ['ten-five', 5], ['ten-six', 6], ['ten-nine', 9], ['ten-points', 10],
 ]);
 const sixDistinctLines = '1+1+1+1+1+1';
+const fiveDistinctLines = '2+1+1+1+1';
+const fourDistinctLines = '2+2+1+1';
+const prefilteredPointCounts = new Map([
+  [fiveDistinctLines, [1, 2, 6, 10]],
+  [fourDistinctLines, [1, 2, 3, 4, 5]],
+]);
 const explicitTenLayout = process.env.AFFINE_TEN_EXPLICIT_LAYOUT === '1';
 
 function maximalNegatives() {
@@ -108,7 +115,40 @@ function prescribedTenCenters({ indices }, mode) {
   return [...points.filter(point => !pointDegrees[point]), line];
 }
 
-function build(representatives, budget, hidden, unproductive, symbolic, mode) {
+function compatibleCenterSets(rows, pointCountRequired) {
+  const layouts = [], centers = [];
+  function visit(start, chosenPoints) {
+    if (centers.length === 10) {
+      if (chosenPoints !== pointCountRequired) return;
+      const centerSet = new Set(centers);
+      const uncovered = edges.reduce((mask, [p, l], i) =>
+        centerSet.has(p) || centerSet.has(l) ? mask : mask | (1n << BigInt(i)), 0n);
+      let count = 0;
+      for (let mask = uncovered; mask; mask &= mask - 1n) count++;
+      if (count <= 6) layouts.push({ centers: [...centers], uncovered });
+      return;
+    }
+    for (let i = start; i <= inputCount - (10 - centers.length); i++) {
+      const nextPoints = chosenPoints + Number(i < pointCount);
+      if (nextPoints > pointCountRequired || centers.length + 1 - nextPoints > 10 - pointCountRequired) continue;
+      centers.push(i);
+      visit(i + 1, nextPoints);
+      centers.pop();
+    }
+  }
+  visit(0, 0);
+  return new Map(rows.map(row => {
+    const deep = row.indices.reduce((mask, i) => mask | (1n << BigInt(i)), 0n);
+    const available = layouts.filter(layout =>
+      (layout.uncovered & deep) === layout.uncovered && layout.centers.every(center =>
+        edges.some(([p, l], i) => (p === center || l === center) && !(deep & (1n << BigInt(i))))
+      )
+    );
+    return [row, available];
+  }));
+}
+
+function build(representatives, budget, hidden, unproductive, symbolic, mode, compatible) {
   const mixed = mode !== 'lines';
   const tenTerms = tenPointCounts.has(mode);
   const repeated = mode === 'repeat' || mode === 'ten-repeat';
@@ -129,11 +169,12 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
 
   const cnf = new Cnf();
   const fixed = new Set(representatives[0].indices);
+  const orbitFlags = [];
   const isDeep = edges.map((_, i) => symbolic ? cnf.fresh() : fixed.has(i) ? 1 : -1);
   if (symbolic) {
     cnf.atMost(isDeep, edgeCount);
-    const choices = representatives.map(({ indices }) => cnf.and(indices.map(i => isDeep[i])));
-    cnf.add(...choices);
+    orbitFlags.push(...representatives.map(({ indices }) => cnf.and(indices.map(i => isDeep[i]))));
+    cnf.add(...orbitFlags);
   }
   const vertices = repeated ? range(inputCount + lineCount) : mixed ? inputs : lines;
   const members = mixed ? inputs : points;
@@ -141,6 +182,16 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   const layouts = representatives.map(row => prescribedTenCenters(row, mode));
   const usesLayouts = explicitTenLayout && layouts.every(layout => layout?.length);
   const centerActive = vertices.map(() => mixed ? cnf.fresh() : 1);
+  if (compatible) {
+    const witnesses = new Map();
+    for (const [i, row] of representatives.entries()) {
+      const available = compatible.get(row).map(layout => {
+        if (!witnesses.has(layout)) witnesses.set(layout, cnf.and(layout.centers.map(center => centerActive[center])));
+        return witnesses.get(layout);
+      });
+      cnf.add(-(symbolic ? orbitFlags[i] : 1), ...available);
+    }
+  }
   if (usesLayouts) for (const [j, layout] of layouts.entries()) {
     const choices = new Set(layout);
     const selected = representatives[j].indices.map(i => -isDeep[i]);
@@ -331,7 +382,7 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
 const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0', centerMode = 'lines'] = process.argv.slice(2);
 const symbolic = selection === 'all' || [...patterns, ...additionalPatterns, ...sixPatterns].includes(selection);
 if (!filename || (!symbolic && !/^\d+$/.test(selection))) {
-  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat|ten-repeat|ten-one|ten-nine|ten-points]');
+  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat|ten-repeat|ten-one|ten-two|ten-three|ten-four|ten-five|ten-six|ten-nine|ten-points]');
 }
 const { representatives } = JSON.parse(fs.readFileSync(catalog, 'utf8'));
 const group = representatives[0]?.indices.length === 6 ? sixPatterns : patterns;
@@ -339,18 +390,32 @@ const selected = symbolic
   ? representatives.filter(row => selection === 'all' ? group.includes(row.pattern) : row.pattern === selection)
   : [representatives[Number(selection) - 1]];
 if (selected.some(row => !row)) throw Error('Unknown orbit number');
-const allowed = explicitTenLayout ? selected.filter(row => prescribedTenCenters(row, centerMode)?.length !== 0) : selected;
+if (filename === '--center-catalog') {
+  assert.ok(selected.length && selected.every(row => row.indices.length === 6));
+  const counts = range(11).map(points => {
+    const compatible = compatibleCenterSets(selected, points);
+    return { points, orbits: [...compatible.values()].filter(layouts => layouts.length).length };
+  });
+  console.log(JSON.stringify(counts, null, 2));
+  process.exit(0);
+}
+const pointCountRequired = tenPointCounts.get(centerMode);
+const canPrefilter = selected.length > 0 && selected.every(row =>
+  prefilteredPointCounts.get(row.pattern)?.includes(pointCountRequired));
+const compatible = canPrefilter ? compatibleCenterSets(selected, pointCountRequired) : null;
+const allowed = compatible ? selected.filter(row => compatible.get(row).length) :
+  explicitTenLayout ? selected.filter(row => prescribedTenCenters(row, centerMode)?.length !== 0) : selected;
 if (!allowed.length) throw Error('No orbit matches the required center configuration');
 const budget = Number(budgetArg);
 const hidden = Number(hiddenArg);
 const unproductive = Number(unproductiveArg);
 assert.ok(['lines', 'mixed', 'eight', 'repeat'].includes(centerMode) || tenPointCounts.has(centerMode));
-const supported = centerMode === 'ten-repeat' ? [sixDistinctLines, '2+2+1+1', '2+1+1+1+1'] :
+const supported = centerMode === 'ten-repeat' ? [sixDistinctLines, '2+2+1+1', fiveDistinctLines] :
   tenPointCounts.has(centerMode) ? [sixDistinctLines] : centerMode === 'mixed' ? additionalPatterns : ['4+1'];
-if (centerMode !== 'lines' && !allowed.every(row => supported.includes(row.pattern))) {
+if (!canPrefilter && centerMode !== 'lines' && !allowed.every(row => supported.includes(row.pattern))) {
   throw Error('Unsupported representative for this center mode');
 }
-const { cnf, ...mapping } = build(allowed, budget, hidden, unproductive, symbolic, centerMode);
+const { cnf, ...mapping } = build(allowed, budget, hidden, unproductive, symbolic, centerMode, compatible);
 cnf.write(filename);
 const orbit = symbolic ? { selection, count: allowed.length } : allowed[0];
 fs.writeFileSync(filename + '.map', JSON.stringify({ ...mapping, ...orbit, budget, hidden, unproductive }) + '\n');

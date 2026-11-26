@@ -716,3 +716,37 @@ Pour 2 + 2 + 1 + 1, les trois certificats du mode à droite répétée sont vér
 Pour 2 + 1 + 1 + 1 + 1, les trois certificats du mode à droite répétée sont vérifiés. Il faut donc dix centres distincts dans cette répartition.
 
 Les autres possibilités pour six arêtes profondes restent à examiner, et le cas général à 43 portes reste ouvert.
+
+### Dix centres distincts avec six arêtes sur quatre ou cinq droites
+
+Il reste à examiner les dix termes productifs de centres distincts dans les répartitions 2 + 2 + 1 + 1 et 2 + 1 + 1 + 1 + 1. La projection reprend le budget 4 − h − 2u et les trois couples (h, u) disponibles. Elle utilise un préfiltre par orbite pour contraindre les centres.
+
+Pour un ensemble C de dix centres et un représentant D des six arêtes profondes, on vérifie deux conditions. Toute arête dont les deux extrémités sont hors de C doit appartenir à D. Chaque sommet de C doit aussi avoir au moins une incidence hors de D, car il doit centrer un terme productif. La routine `compatibleCenterSets` énumère les ensembles C satisfaisant ces conditions pour chaque nombre de centres points. Le générateur supprime les représentants sans ensemble compatible. Pour chaque représentant restant, il impose l’un de ses ensembles de centres compatibles. Cela conserve tous les circuits du sous-cas. Les autres contraintes de projection vérifient ensuite les gardes, les ET et le budget.
+
+| Répartition | Centres points possibles | Orbites compatibles dans l’ordre |
+| --- | --- | --- |
+| 2 + 2 + 1 + 1 | 1, 2, 3, 4, 5 | 1 056, 1 056, 273, 28, 3 |
+| 2 + 1 + 1 + 1 + 1 | 1, 2, 6, 10 | 2 302, 2 302, 1, 1 |
+
+Une orbite peut être compatible avec plusieurs nombres de centres points. Ces nombres et effectifs ont été contrôlés par une seconde énumération indépendante des ensembles de centres.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+node projection-cinq.cjs orbites-six.json 2+1+1+1+1 --center-catalog
+AFFINE_PROJECTED_CANONICAL=1 node projection-cinq.cjs orbites-six.json \
+  2+1+1+1+1 projection-cinq-droites.cnf 2 2 0 ten-two
+kissat --time=110 projection-cinq-droites.cnf projection-cinq-droites.drat
+drat-trim projection-cinq-droites.cnf projection-cinq-droites.drat
+```
+
+Les modes `ten-one`, `ten-two`, `ten-three`, `ten-four`, `ten-five`, `ten-six` et `ten-points` fixent respectivement un, deux, trois, quatre, cinq, six et dix centres points, selon les modes compatibles du tableau. Le contrôle à budget relâché couvre une configuration avec dix centres points. Deux ET internes calculent les étoiles des points hors de C et deux ET exposés non productifs transmettent leurs sorties. Les six arêtes profondes occupent cinq droites, dont une partagée par les deux points. Ce contrôle a donné SAT.
+
+Le cas de deux centres points se lit directement sur l’incidence. Il y a une droite sans centre. Ses incidences peu profondes ne peuvent provenir que de ces deux points. La droite doit donc porter exactement deux arêtes profondes, et les deux points centres sont les deux autres points de cette droite. Dans 2 + 1 + 1 + 1 + 1, cela fixe l’ensemble des centres à partir du représentant. Dans 2 + 2 + 1 + 1, chacune des deux droites doubles est candidate. Avec trois centres points dans 2 + 2 + 1 + 1, les deux droites sans centre reçoivent au plus quatre incidences des trois points centres, car elles partagent au plus un point. Ce sont donc les deux droites doubles, et leurs deux ensembles de voisins peu profonds partagent exactement un des trois points centres.
+
+Pour la répartition 3 + 1 + 1 + 1, le même catalogue donne 324 orbites avec un centre point, 324 avec deux et 159 avec trois lorsqu’il y a dix centres distincts. Si l’on prend neuf termes productifs, leurs centres sont distincts, et un seul doit être un point. En effet, neuf centres droites ont déjà été exclus. Avec deux centres points, les deux droites sans centre devraient porter ensemble au moins cinq arêtes profondes, alors que le total des deux plus grandes parts est quatre. Avec trois centres points, l’égalité dans le comptage des paires impose deux arêtes profondes sur chacune des trois droites sans centre. Les nombres de centres points supérieurs à trois sont exclus par ce même comptage. Ainsi, avec neuf termes, la droite sans centre est celle qui porte trois arêtes profondes, et le point centre est son unique voisin peu profond.
+
+### Exclusion des deux répartitions à dix centres distincts
+
+Les 27 formules couvrant les neuf modes compatibles du tableau et les trois couples (h, u) sont insatisfiables. Chacune a un certificat DRAT vérifié. Le [registre des vérifications](certificats-projection-six-centres-distincts.tsv) indique le mode, le budget, le nombre de représentants et les empreintes. Toutes les formules du registre utilisent `AFFINE_PROJECTED_CANONICAL=1`. Les 29 formules de la recherche précédente gardent leurs empreintes.
+
+Avec les exclusions antérieures des neuf termes et des centres répétés, **les répartitions 2 + 2 + 1 + 1 et 2 + 1 + 1 + 1 + 1 sont exclues** à 43 portes. Un circuit qui aurait exactement six arêtes profondes devrait les répartir sur au plus quatre droites. Sur quatre droites, seule la répartition 3 + 1 + 1 + 1 reste à examiner. Le seuil de 43 portes demeure ouvert.
