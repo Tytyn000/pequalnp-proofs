@@ -236,3 +236,53 @@ AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_ORBIT=173 \
 Le représentant 173 est l’unique orbite où les quatre arêtes sont sur une même droite.
 
 Les quatre essais ont rendu UNKNOWN après 65 secondes chacun avec Kissat. Pour contrôler l’option numérique, le seuil a été temporairement porté à 45 portes. Le circuit exact à 45 portes obtenu en recopiant un ET de tête a été accepté avec le représentant 173 et rejeté avec le représentant 1. Les quatre arêtes profondes de ce témoin appartiennent à la première droite.
+
+## Le cas à dix ET productifs est impossible
+
+**Avec quatre arêtes profondes et 43 portes, il y a huit ou neuf ET productifs et au plus onze ET en tout.** Cela complète les contraintes précédentes sur dix ET productifs en excluant ce cas.
+
+Notons u le nombre d’ET exposés non productifs. Le parcours depuis la sortie traverse au moins t + u − 1 OU, puisqu’il atteint les t + u ET exposés. Le comptage des disjonctions de voisins donne au moins m − t OU supplémentaires. Il faut compter aussi les t + u ET exposés et les h ET internes. On obtient
+
+```text
+s ≥ m + t + h + 2u − 1.
+```
+
+Pour m = 32 et s = 43, la borne antérieure m + t + h ≤ s donne t + h ≤ 11, tandis que le nouveau comptage donne t + h + 2u ≤ 12. Si u = 0, il y a au plus onze ET. Si u ≥ 1, il y en a au plus 12 − u ≤ 11.
+
+Supposons t = 10. Alors h = 1 et u = 0. Notons G l’ET interne. Les quatre arêtes profondes occupent plusieurs droites, d’après le résultat précédent. Elles utilisent aussi plusieurs points, car un seul point n’a que trois incidences.
+
+Sur chaque arête profonde, soit E le premier ET exposé qui est vrai. Il est productif puisque u = 0. Au moins un de ses opérandes est vrai par un chemin de OU depuis G et faux après remplacement des ET par zéro. Si ce chemin ne traverse que des OU de U, le comptage gagne un terminal vide dans les voisins du centre de E, comme précédemment. Si |U| ≥ 42, toutes les portes vivantes sont dans U ou égales à G. Au plus un centre pourrait alors recevoir G, et tous les E choisis auraient pour opérande de centre une même entrée primaire. Une droite ne convient pas puisque plusieurs droites sont représentées. Un point ne convient pas puisqu’il n’a que trois incidences.
+
+On a donc |U| = 41 et une seule porte supplémentaire S. Chaque E choisi reçoit G par un chemin de OU passant par S. Tout OU de U qui lirait directement G ajouterait un terminal vide, donc un tel lecteur n’existe pas. Comme dans le cas à trois arêtes, S a un support singleton. Un support plus grand ferait compter S dans U sur le parcours de voisins. Un support vide ferait de S un terminal vide de ce parcours.
+
+Soient Q l’ensemble des points des arêtes profondes et R l’ensemble de leurs droites. Chaque support en amont de G est contenu dans une seule part du graphe. Les supports des OU de U sont vides ou contenus dans les voisins d’un centre unique. Les entrées primaires sont des singletons et S est en aval de G. Comme G est le premier ET vrai sur chacune des arêtes profondes, chacun de ses opérandes est vrai sur chacune de ces arêtes avec tous les ET précédents forcés à zéro. Si le support d’un opérande est formé de points, il contient donc tout Q. S’il est formé de droites, il contient tout R. Par conséquent G est vrai sur **toute paire de Q × R**, y compris celles qui ne sont pas des incidences.
+
+Si le support de S est un point, il ne peut alimenter qu’un opérande de centre point ou un opérande de voisins de centre droite. Dans les deux cas, l’autre opérande de E a un support formé de droites. Sur une arête profonde {q, L} acceptée par E, cet autre opérande doit recevoir sa valeur vraie de l’entrée L. Il ne peut la recevoir de G. Un chemin depuis G devrait traverser S, auquel cas son support contiendrait un point. Il ne peut pas la recevoir d’un ET exposé antérieur, puisque E est le premier ET exposé vrai. Ainsi, pour chaque L de R, le circuit accepte toute paire qui active L et G. Le même argument avec les deux parts échangées montre que, si le support de S est une droite, pour chaque q de Q le circuit accepte toute paire qui active q et G.
+
+Dans les deux cas, le circuit accepte tout Q × R. Comme |Q| ≥ 2 et |R| ≥ 2, cela donnerait un cycle d’incidence de longueur quatre. Le graphe n’en a aucun, donc t = 10 est impossible.
+
+Il en découle que, lorsque les quatre arêtes profondes occupent plusieurs droites, les neuf ET productifs ont neuf centres distincts. Le seul cas qui puisse alors avoir un centre point est la répartition 3 + 1.
+
+### Raffinements intermédiaires et comptage des gardes
+
+Avant l’exclusion complète de t = 10, le cas |U| = 41 avait fourni deux autres restrictions. L’égalité |U| = m + t − 1 exige que les voisins couverts par des centres distincts ne se recouvrent pas sur une arête. Pour un même centre, l’égalité dans le comptage q ≥ k_x − t_x exige t_x racines distinctes, exactement k_x terminaux avec un singleton distinct chacun, et exactement un arc entrant par sommet hors racine dans le parcours depuis les racines. Les parcours issus des différentes racines sont donc disjoints. Les dix termes productifs auraient ainsi couvert chaque arête peu profonde exactement une fois.
+
+Le support singleton de S donnait aussi une restriction géométrique. Si c’est un point p, toutes les droites profondes contiennent p et aucun de leurs points profonds n’est p. En effet, S se trouve soit dans les disjonctions de voisins de ces droites, soit dans un opérande de centre p dont les voisins comprennent les droites profondes concernées. Si S a pour support une droite A, tous les points profonds sont sur A et leurs droites profondes sont différentes de A. Il ne restait que onze orbites parmi les 172 orbites réparties sur plusieurs droites. La preuve ci-dessus exclut aussi celles-ci.
+
+## Encodages SAT compacts
+
+`AFFINE_COMPACT_ROWS=1` encode une ligne positive par des sous-estimations booléennes des valeurs des fils. Il suffit d’exiger que la sortie sous-estimée soit vraie. Pour une ligne négative, l’encodage utilise des surestimations et exige que la sortie surestimée soit fausse. L’induction de porte en porte est valide par monotonie de ET et OU. Réciproquement, les valeurs exactes satisfont toutes les implications si le circuit est correct. Le remplacement conserve donc la satisfiabilité sur la frontière complète.
+
+`AFFINE_COMPACT_DEPTH=1` partage l’évaluation à zéro ET sur les 21 singletons. La valeur d’un opérande avec deux entrées actives est le OU de ses deux valeurs singletons. Une arête est peu profonde exactement quand au moins un ET exposé combine deux opérandes ainsi vrais. Cette définition remplace les évaluations répétées à un ET. `AFFINE_DEPTH_MAX_NINE=1` impose la nouvelle borne de neuf ET productifs et onze ET au total pour exactement quatre arêtes profondes.
+
+Pour le problème global à 43 portes, le nombre de clauses passe de 1 866 772 à 995 119. Pour le cas d’égalité et l’ensemble des représentants, les deux compactions donnent 1 114 945 clauses, contre 2 410 854 dans la version précédente. Les contrôles ont accepté le témoin exact à 44 portes, rejeté un candidat qui manque seulement un positif minimal et rejeté un témoin modifié qui accepte des négatifs maximaux tout en conservant tous les positifs. La variante de profondeur a aussi accepté le témoin à 45 portes dans son orbite et l’a rejeté dans l’orbite 1.
+
+```sh
+AFFINE_COMPACT_ROWS=1 AFFINE_MIN_DEEP_EDGES=4 \
+  node frontiere.cjs build affine43-compact-global.cnf 43 197 ordered
+AFFINE_COMPACT_ROWS=1 AFFINE_COMPACT_DEPTH=1 AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 \
+  AFFINE_DEEP_ORBIT=all AFFINE_DEPTH_MAX_NINE=1 \
+  node frontiere.cjs build affine43-neuf-productifs-onze-et.cnf 43 197 ordered
+```
+
+Kissat a rendu UNKNOWN pour les quinze essais compacts, avec des limites allant de 70 à 150 secondes. Les deux commandes ci-dessus ont utilisé les limites de 150 et 80 secondes respectivement. Les essais `neuf-productifs-all` et `neuf-productifs-concentre` ont précédé la borne de onze ET et utilisaient encore douze comme plafond. Le circuit exact à 45 portes a passé le contrôle du plafond de neuf termes productifs. Un circuit exact à 47 portes ayant quatre arêtes profondes et dix termes productifs a été rejeté lorsque ce plafond a été appliqué indépendamment du plafond du nombre total d’ET.

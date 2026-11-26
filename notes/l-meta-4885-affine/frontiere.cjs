@@ -48,6 +48,14 @@ function automorphisms(){
   visit(0);
   return permutations;
 }
+function possibleTightBridge(indices){
+  const deepEdges=indices.map(i=>edges[i]);
+  return rows.some((neighbors,point)=>deepEdges.every(([q,line])=>
+    q!==point&&(neighbors&(1<<(line-half)))
+  ))||lines.some((_,i)=>deepEdges.every(([point,line])=>
+    line!==half+i&&(rows[point]&(1<<i))
+  ));
+}
 function fourDeepOrbits(){
   if(edges.length!==36)throw Error('Four-edge orbits require the complete affine graph');
   const edgeIndices=new Map(edges.map((edge,i)=>[edge.join(','),i]));
@@ -73,7 +81,7 @@ function fourDeepOrbits(){
             byLine.set(line,(byLine.get(line)??0)+1);
           }
           const pattern=[...byLine.values()].sort((x,y)=>y-x).join('+');
-          representatives.push({indices,pattern,size:orbit.size});
+          representatives.push({indices,pattern,size:orbit.size,tightBridge:possibleTightBridge(indices)});
         }
       }
     }
@@ -370,16 +378,30 @@ if(cmd==='relaxed-control'){
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
   if(depthEquality&&(![3,4].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
     throw Error('Depth equality needs three or four deep edges at 43 gates without fixed edit distance');
+  const compactDepth=process.env.AFFINE_COMPACT_DEPTH==='1';
+  if(compactDepth&&!depthEquality)throw Error('Compact depth needs an exact deep edge count');
   const tightDepth=process.env.AFFINE_DEPTH_TIGHT==='1';
   if(tightDepth&&(!depthEquality||deepEdgeCount!==4))
     throw Error('Tight depth needs exactly four deep edges');
+  const maxNine=process.env.AFFINE_DEPTH_MAX_NINE==='1';
+  if(maxNine&&(!depthEquality||deepEdgeCount!==4||tightDepth))
+    throw Error('The nine-term bound needs the four-edge equality case without a ten-term minimum');
   const deepLinePattern=process.env.AFFINE_DEEP_LINE_PATTERN;
   if(deepLinePattern&&(!depthEquality||
     !(deepEdgeCount===3?['two-plus-one','distinct']:['single','split']).includes(deepLinePattern)))
     throw Error('Unsupported deep line pattern for the requested equality case');
+  const tightAccounting=process.env.AFFINE_TIGHT_ACCOUNTING==='1';
+  if(tightAccounting&&(!tightDepth||deepLinePattern!=='split'))
+    throw Error('Tight accounting needs ten productive ANDs and several deep lines');
+  const tightDisjoint=process.env.AFFINE_TIGHT_DISJOINT==='1';
+  if(tightDisjoint&&(!tightAccounting||!compactDepth))
+    throw Error('Disjoint terms need tight accounting and compact depth');
   const deepOrbit=process.env.AFFINE_DEEP_ORBIT;
   if(deepOrbit!==undefined&&(!depthEquality||deepEdgeCount!==4||deepLinePattern==='single'))
     throw Error('Deep orbits require exactly four edges without a fixed line');
+  const tightBridge=process.env.AFFINE_TIGHT_BRIDGE==='1';
+  if(tightBridge&&(!tightDisjoint||deepOrbit===undefined))
+    throw Error('The tight bridge filter needs disjoint terms and deep-edge orbits');
   const fixedLineEdges=deepLinePattern==='single'?edges.flatMap(([,line],i)=>line===half?[i]:[]):[];
   if(deepLinePattern==='single'&&(fixedLineEdges.length!==4||
     new Set(automorphisms().map(permutation=>permutation[half])).size!==lines.length))
@@ -411,11 +433,13 @@ if(cmd==='relaxed-control'){
       const selection=edges.map(v);
       one(selection);
       if(fixedLineEdges.length)add(selection[fixedLineEdges[j]]);
-      const input=Array.from({length:n},v);
-      for(const [j,edge] of edges.entries()){
-        for(const [i,wire] of input.entries())add(-selection[j],edge.includes(i)?wire:-wire);
+      if(!compactDepth){
+        const input=Array.from({length:n},v);
+        for(const [j,edge] of edges.entries()){
+          for(const [i,wire] of input.entries())add(-selection[j],edge.includes(i)?wire:-wire);
+        }
+        add(-shallowAccepts(input));
       }
-      add(-shallowAccepts(input));
       return selection;
     });
     for(let j=0;j<chosen.length;j++)for(let k=0;k<j;k++){
@@ -427,7 +451,8 @@ if(cmd==='relaxed-control'){
       if(deepOrbit!=='all'&&(!Number.isInteger(orbitNumber)||orbitNumber<1||orbitNumber>representatives.length))
         throw Error('Deep orbit must be all or a one-based representative number');
       const allowed=representatives.filter((rep,i)=>
-        (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')
+        (deepOrbit==='all'||i+1===orbitNumber)&&(deepLinePattern!=='split'||rep.pattern!=='4')&&
+        (!tightBridge||rep.tightBridge)
       );
       if(!allowed.length)throw Error('No orbit matches the deep-line pattern');
       const witnesses=allowed.map(({indices})=>{
@@ -438,7 +463,7 @@ if(cmd==='relaxed-control'){
       one(witnesses);
     }
     if(depthEquality){
-      for(const [i,edge] of edges.entries()){
+      if(!compactDepth)for(const [i,edge] of edges.entries()){
         const input=Array.from({length:n},(_,j)=>edge.includes(j)?truth:-truth);
         add(shallowAccepts(input),...chosen.map(group=>group[i]));
       }
@@ -463,6 +488,44 @@ if(cmd==='relaxed-control'){
           for(const reader of readers)add(-reader,exposed[j]);
         }
       }
+      function orOnlyOperands(inputs){
+        const values=[...inputs];
+        return gates.map(g=>{
+          const left=v(),right=v(),value=v();
+          for(let i=0;i<values.length;i++){
+            add(-g.a[i],-left,values[i]);add(-g.a[i],left,-values[i]);
+            add(-g.b[i],-right,values[i]);add(-g.b[i],right,-values[i]);
+          }
+          add(-value,-g.type);add(-value,left,right);
+          add(value,g.type,-left);add(value,g.type,-right);
+          values.push(value);
+          return [left,right];
+        });
+      }
+      const singletonOperands=compactDepth?Array.from({length:n},(_,j)=>
+        orOnlyOperands(Array.from({length:n},(_,i)=>i===j?truth:-truth))
+      ):null;
+      if(singletonOperands){
+        for(const [i,[point,line]] of edges.entries()){
+          const matches=gates.map((g,j)=>{
+            const match=v();
+            const [aPoint,bPoint]=singletonOperands[point][j];
+            const [aLine,bLine]=singletonOperands[line][j];
+            add(-match,g.type);add(-match,exposed[j]);
+            add(-match,aPoint,aLine);add(-match,bPoint,bLine);
+            for(const left of [aPoint,aLine])for(const right of [bPoint,bLine])
+              add(match,-g.type,-exposed[j],-left,-right);
+            return match;
+          });
+          const marked=chosen.map(selection=>selection[i]);
+          if(tightDisjoint){
+            one([...marked,...matches]);
+          }else{
+            add(...marked,...matches);
+            for(const mark of marked)for(const match of matches)add(-mark,-match);
+          }
+        }
+      }
       function atMost(wires,limit){
         let counts=Array(limit+2).fill(-truth);
         counts[0]=truth;
@@ -477,13 +540,13 @@ if(cmd==='relaxed-control'){
         }
         add(-counts[limit+1]);
       }
-      if(deepEdgeCount===3){
+      if(deepEdgeCount===3||tightAccounting){
         one(inner);
       }else{
         add(...inner);
         atMost(inner,3);
       }
-      atMost(gates.map(g=>g.type),deepEdgeCount+8);
+      atMost(gates.map(g=>g.type),tightAccounting||maxNine?11:deepEdgeCount+8);
       if(deepLinePattern==='split'){
         for(const line of lines.keys()){
           add(...chosen.flatMap(selection=>edges.flatMap(([,wire],i)=>
@@ -491,31 +554,17 @@ if(cmd==='relaxed-control'){
           )));
         }
       }
-      if(tightDepth){
-        function orOnlyOperands(inputs){
-          const values=[...inputs];
-          return gates.map(g=>{
-            const left=v(),right=v(),value=v();
-            for(let i=0;i<values.length;i++){
-              add(-g.a[i],-left,values[i]);add(-g.a[i],left,-values[i]);
-              add(-g.b[i],-right,values[i]);add(-g.b[i],right,-values[i]);
-            }
-            add(-value,-g.type);add(-value,left,right);
-            add(value,g.type,-left);add(value,g.type,-right);
-            values.push(value);
-            return [left,right];
-          });
-        }
+      if(tightDepth||maxNine){
         const allOperands=orOnlyOperands(Array(n).fill(truth));
-        const lineOperands=lines.map((_,j)=>orOnlyOperands(
-          Array.from({length:n},(_,i)=>i===half+j?truth:-truth)
-        ));
+        const lineOperands=!tightDepth?[]:singletonOperands?singletonOperands.slice(half):
+          lines.map((_,j)=>orOnlyOperands(Array.from({length:n},(_,i)=>i===half+j?truth:-truth)));
         const pointCenters=[];
         const productive=gates.map((g,j)=>{
           const flag=v(), [left,right]=allOperands[j];
           add(-flag,g.type);add(-flag,exposed[j]);add(-flag,left);add(-flag,right);
           add(flag,-g.type,-exposed[j],-left,-right);
-          for(let side=0;side<2;side++){
+          if(tightAccounting)add(-g.type,-exposed[j],flag);
+          if(tightDepth)for(let side=0;side<2;side++){
             const witness=v();
             add(-witness,flag);
             const support=lineOperands.map(operands=>operands[j][side]);
@@ -524,8 +573,12 @@ if(cmd==='relaxed-control'){
           }
           return flag;
         });
-        atMost(productive.map(wire=>-wire),s-10);
-        add(...pointCenters);
+        if(tightDepth){
+          atMost(productive.map(wire=>-wire),s-10);
+          add(...pointCenters);
+        }else{
+          atMost(productive,9);
+        }
       }
       if(deepLinePattern&&deepEdgeCount===3){
         const lineChoices=chosen.map(selection=>{
@@ -916,6 +969,26 @@ if(cmd==='relaxed-control'){
       const g=gates[j]; add(g.a[a]); add(g.b[b]); add(g.type*(op==="and"?1:-1));
     });
   }
+  const compactRows=process.env.AFFINE_COMPACT_ROWS==='1';
+  if(compactRows&&(!['plain','ordered'].includes(mode)||count!==neg.length||
+    process.env.AFFINE_NEG_SAMPLES))
+    throw Error('Compact rows need the full exact boundary in plain or ordered mode');
+  function encodeCompactRow(values,positive){
+    for(const g of gates){
+      const a=v(),b=v(),out=v();
+      for(const [i,value] of values.entries()){
+        add(-g.a[i],positive?-a:a,positive?value:-value);
+        add(-g.b[i],positive?-b:b,positive?value:-value);
+      }
+      if(positive){
+        add(-g.type,-out,a);add(-g.type,-out,b);add(g.type,-out,a,b);
+      }else{
+        add(-g.type,out,-a,-b);add(g.type,out,-a);add(g.type,out,-b);
+      }
+      values.push(out);
+    }
+    return values;
+  }
   const events=Array.from({length:s},()=>({positive:[[],[]],negative:[[],[]]}));
   function encodeRow(w, dirty=false, forced=-1, value=false, boundary=null, reducedDirections=null){
     const marked=[];
@@ -979,7 +1052,8 @@ if(cmd==='relaxed-control'){
     selectedRows=[...pos.map(m=>[m,true]),...chosen.map(m=>[m,false])];
   }
   for(const [mask,expected] of selectedRows){
-    const row=encodeRow(Array.from({length:n},(_,i)=>mask>>i&1?truth:-truth),false,-1,false,expected);
+    const inputs=Array.from({length:n},(_,i)=>mask>>i&1?truth:-truth);
+    const row=compactRows?encodeCompactRow(inputs,expected):encodeRow(inputs,false,-1,false,expected);
     if(distinct)boundaryRows.push(row);
     if(active)for(let j=0;j<s;j++){
       (expected?hits:misses)[j].push(expected?row[n+j]:-row[n+j]);
