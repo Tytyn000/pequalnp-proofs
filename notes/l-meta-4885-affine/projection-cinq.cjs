@@ -13,6 +13,11 @@ const inputs = range(inputCount);
 const patterns = ['2+2+1', '2+1+1+1', '1+1+1+1+1'];
 const additionalPatterns = ['3+2', '3+1+1', '4+1'];
 const sixPatterns = ['3+3', '3+2+1', '3+1+1+1', '2+2+2', '2+2+1+1', '2+1+1+1+1', '1+1+1+1+1+1'];
+const tenPointCounts = new Map([
+  ['ten-repeat', 0], ['ten-one', 1], ['ten-nine', 9], ['ten-points', 10],
+]);
+const sixDistinctLines = '1+1+1+1+1+1';
+const explicitTenLayout = process.env.AFFINE_TEN_EXPLICIT_LAYOUT === '1';
 
 function maximalNegatives() {
   const neighbors = points.map(point => edges.reduce((mask, [p, line]) =>
@@ -88,17 +93,32 @@ class Cnf {
   }
 }
 
+function prescribedTenCenters({ indices }, mode) {
+  if (mode !== 'ten-nine' && mode !== 'ten-points') return null;
+  const deep = new Set(indices);
+  const pointDegrees = points.map(point => indices.filter(i => edges[i][0] === point).length);
+  const uncentered = points.filter(point => pointDegrees[point]);
+  if (mode === 'ten-points') {
+    if (uncentered.length !== 2 || uncentered.some(point => pointDegrees[point] !== 3)) return [];
+    return points.filter(point => !pointDegrees[point]);
+  }
+  if (uncentered.length !== 3 || uncentered.some(point => pointDegrees[point] !== 2)) return [];
+  const [, line] = edges.find(([point], i) => point === uncentered[0] && !deep.has(i));
+  if (!uncentered.every(point => edges.some(([p, l], i) => p === point && l === line && !deep.has(i)))) return [];
+  return [...points.filter(point => !pointDegrees[point]), line];
+}
+
 function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   const mixed = mode !== 'lines';
-  const hasPoint = mode === 'mixed';
-  const repeated = mode === 'repeat';
-  const termCount = mode === 'eight' ? 8 : 9;
+  const tenTerms = tenPointCounts.has(mode);
+  const repeated = mode === 'repeat' || mode === 'ten-repeat';
+  const termCount = tenTerms ? 10 : mode === 'eight' ? 8 : 9;
   assert.ok(representatives.length);
   assert.ok(Number.isInteger(budget) && budget >= 0);
   assert.ok([1, 2, 3].includes(hidden));
   assert.ok([0, 1, 2].includes(unproductive));
   const edgeCount = representatives[0].indices.length;
-  assert.ok(edgeCount === 5 || (edgeCount === 6 && !mixed));
+  assert.ok(tenTerms ? edgeCount === 6 : edgeCount === 5 || (edgeCount === 6 && !mixed));
   for (const { indices } of representatives) {
     assert.equal(indices.length, edgeCount);
     assert.equal(new Set(indices).size, edgeCount);
@@ -118,15 +138,27 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   const vertices = repeated ? range(inputCount + lineCount) : mixed ? inputs : lines;
   const members = mixed ? inputs : points;
   const vertexOf = center => center >= inputCount ? center - lineCount : mixed ? center : pointCount + center;
+  const layouts = representatives.map(row => prescribedTenCenters(row, mode));
+  const usesLayouts = explicitTenLayout && layouts.every(layout => layout?.length);
   const centerActive = vertices.map(() => mixed ? cnf.fresh() : 1);
+  if (usesLayouts) for (const [j, layout] of layouts.entries()) {
+    const choices = new Set(layout);
+    const selected = representatives[j].indices.map(i => -isDeep[i]);
+    for (const [vertex, flag] of centerActive.entries()) cnf.add(...selected, choices.has(vertex) ? flag : -flag);
+  }
   if (mixed) {
     cnf.atMost(centerActive, termCount);
     cnf.atMost(centerActive.map(flag => -flag), vertices.length - termCount);
-    if (hasPoint) {
-      cnf.add(...centerActive.slice(0, pointCount));
-      cnf.atMost(centerActive.slice(0, pointCount), 2);
+    const pointCenters = centerActive.slice(0, pointCount);
+    if (mode === 'mixed') {
+      cnf.add(...pointCenters);
+      cnf.atMost(pointCenters, 2);
+    } else if (tenTerms && !repeated) {
+      const count = tenPointCounts.get(mode);
+      cnf.atMost(pointCenters, count);
+      cnf.atMost(pointCenters.map(flag => -flag), pointCount - count);
     } else {
-      for (const flag of centerActive.slice(0, pointCount)) cnf.add(-flag);
+      for (const flag of pointCenters) cnf.add(-flag);
     }
     if (repeated) {
       cnf.one(centerActive.slice(inputCount));
@@ -299,19 +331,22 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
 const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0', centerMode = 'lines'] = process.argv.slice(2);
 const symbolic = selection === 'all' || [...patterns, ...additionalPatterns, ...sixPatterns].includes(selection);
 if (!filename || (!symbolic && !/^\d+$/.test(selection))) {
-  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat]');
+  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat|ten-repeat|ten-one|ten-nine|ten-points]');
 }
 const { representatives } = JSON.parse(fs.readFileSync(catalog, 'utf8'));
 const group = representatives[0]?.indices.length === 6 ? sixPatterns : patterns;
-const allowed = symbolic
+const selected = symbolic
   ? representatives.filter(row => selection === 'all' ? group.includes(row.pattern) : row.pattern === selection)
   : [representatives[Number(selection) - 1]];
-if (allowed.some(row => !row)) throw Error('Unknown orbit number');
+if (selected.some(row => !row)) throw Error('Unknown orbit number');
+const allowed = explicitTenLayout ? selected.filter(row => prescribedTenCenters(row, centerMode)?.length !== 0) : selected;
+if (!allowed.length) throw Error('No orbit matches the required center configuration');
 const budget = Number(budgetArg);
 const hidden = Number(hiddenArg);
 const unproductive = Number(unproductiveArg);
-assert.ok(['lines', 'mixed', 'eight', 'repeat'].includes(centerMode));
-const supported = centerMode === 'mixed' ? additionalPatterns : ['4+1'];
+assert.ok(['lines', 'mixed', 'eight', 'repeat'].includes(centerMode) || tenPointCounts.has(centerMode));
+const supported = centerMode === 'ten-repeat' ? [sixDistinctLines, '2+2+1+1', '2+1+1+1+1'] :
+  tenPointCounts.has(centerMode) ? [sixDistinctLines] : centerMode === 'mixed' ? additionalPatterns : ['4+1'];
 if (centerMode !== 'lines' && !allowed.every(row => supported.includes(row.pattern))) {
   throw Error('Unsupported representative for this center mode');
 }

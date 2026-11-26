@@ -664,3 +664,55 @@ Pour les répartitions 2 + 2 + 1 + 1, 2 + 1 + 1 + 1 + 1 et 1 + 1 + 1 + 1 + 1 + 1
 Le [registre des formules et des traces](certificats-projection-six-repartitions.tsv) indique pour chaque essai la répartition, le nombre d’orbites, les bornes du nombre de OU projetés et les empreintes. Chaque formule utilise un budget de trois avec deux ET internes et aucun ET exposé non productif. Le contrôle à budget relâché de la répartition 3 + 3 reste satisfaisable avec l’option canonique, après échange des opérandes pour suivre l’ordre imposé. Les déclarations d’insatisfiabilité des cinq nouvelles répartitions couvrent les deux tranches du nombre de OU et ont chacune été soutenues par une trace DRAT vérifiée.
 
 Les onze certificats par répartition suffisent à cette exclusion. Le registre conserve aussi un essai global redondant sur la tranche à au moins deux OU projetés. Kissat y a rendu UNSAT, et son certificat est indiqué séparément s’il a été vérifié.
+
+### Six arêtes sur six droites et dix ET productifs
+
+On considère seulement la répartition 1 + 1 + 1 + 1 + 1 + 1. La nécessité de dix termes productifs a aussi été démontrée pour 2 + 2 + 1 + 1 et 2 + 1 + 1 + 1 + 1. Elle ne s’étend pas à toutes les répartitions sur quatre droites. En particulier, le cas 3 + 1 + 1 + 1 avec neuf centres dont un point reste à traiter.
+
+Les dix termes ont au moins neuf centres distincts. Avec neuf, ce sont les neuf droites, et l’une est le centre de deux termes. Avec dix, les centres comprennent un, neuf ou dix points. Ces quatre cas sont pris en charge par les modes `ten-repeat`, `ten-one`, `ten-nine` et `ten-points` de la projection. S’il y a une droite répétée, les deux termes peuvent avoir des gardes et des opérandes de centre différents. Comme dans la projection précédente, le calcul des gardes compte une seule fois, pour cette droite, un terminal de support vide qu’elles partagent.
+
+Pour t = 10, on a t + h ≤ 12, h ≥ 1 et t + h + u ≤ 12. Il reste donc trois couples (h, u). Le budget disponible pour les OU projetés et les terminaux vides est 4 − h − 2u. Le calcul reprend le parcours de gardes par centre avec m = 30. Il s’applique aussi à la droite répétée en prenant ensemble ses deux racines.
+
+| ET internes h | ET exposés non productifs u | Budget |
+| ---: | ---: | ---: |
+| 1 | 0 | 3 |
+| 1 | 1 | 1 |
+| 2 | 0 | 2 |
+
+L’option `AFFINE_TEN_EXPLICIT_LAYOUT=1` peut réduire le catalogue pour les modes à neuf ou dix centres points. Dans `ten-nine`, les trois points sans centre sont sur l’unique droite centre. Leurs six incidences aux autres droites sont profondes. Le profil profond fixe donc ces trois points et la droite centre. Dans `ten-points`, le profil profond est l’union exacte des deux étoiles des points sans centre. Puisque les six incidences occupent des droites distinctes, ces deux points n’ont aucune droite commune. Dans les deux cas, la projection peut éliminer les représentants incompatibles et déduire les centres à partir du profil profond. Le catalogue laisse exactement une orbite dans chacun de ces deux modes.
+
+Dans le mode `ten-repeat` avec u = 0, aucun circuit ne peut avoir zéro OU projeté. Tous les opérandes de centre seraient alors les entrées primaires de leurs droites. Chacune des six droites profondes devrait atteindre au moins un terminal de support vide dans une garde, alors que le budget est au plus trois. Une droite répétée ne réduit pas le nombre de droites distinctes à servir. Cela justifie la partition complémentaire sur le nombre de OU projetés lorsque u = 0.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+AFFINE_PROJECTED_CANONICAL=1 node projection-cinq.cjs orbites-six.json \
+  1+1+1+1+1+1 projection-dix-repete.cnf 2 2 0 ten-repeat
+kissat --time=125 projection-dix-repete.cnf projection-dix-repete.drat
+drat-trim projection-dix-repete.cnf projection-dix-repete.drat
+```
+
+Les autres budgets, couples et modes peuvent être passés aux mêmes positions. Pour reproduire un essai limité à un nombre précis de OU projetés, définir `AFFINE_PROJECTED_OR_MIN` et `AFFINE_PROJECTED_OR_MAX` à ce nombre. Le contrôle à budget relâché accepte une projection avec dix centres points et deux termes exposés non productifs qui recopient les étoiles des deux points sans centre.
+
+### Préfiltre géométrique pour les dix centres distincts
+
+On a aussi énuméré les C(21, 10) ensembles de dix centres distincts, sans imposer le câblage. Pour chaque ensemble, on retire les incidences touchant au moins un de ses sommets, puis on compte les incidences restantes sur chaque droite. Le vecteur trié de ces nombres doit être dominé terme à terme par la répartition profonde triée, prolongée par des zéros. Cette condition est nécessaire puisqu’aucune arête peu profonde ne peut être couverte si ses deux sommets sont absents. Elle laisse les effectifs suivants, sans quotient par symétrie.
+
+| Répartition | Centres points et nombre d’ensembles |
+| --- | --- |
+| 2 + 2 + 1 + 1 | 1 : 12, 2 : 54, 3 : 324, 4 : 432, 5 : 756 |
+| 2 + 1 + 1 + 1 + 1 | 1 : 12, 2 : 54, 6 : 54, 10 : 54 |
+| 1 + 1 + 1 + 1 + 1 + 1 | 1 : 12, 9 : 36, 10 : 12 |
+
+Pour neuf centres distincts, la même condition ne laisse que l’ensemble des neuf droites dans chacune des trois répartitions. Ce préfiltre n’exige pas qu’un terme soit actif pour chaque centre sélectionné, ni que toutes les gardes puissent être calculés dans le budget. Ces effectifs concernent donc uniquement la géométrie des centres.
+
+### Résultats certifiés avec dix termes
+
+Les douze formules de base couvrant les quatre modes et les trois couples (h, u) sur les 864 orbites sont insatisfiables, avec leurs certificats DRAT vérifiés. Cela exclut tout circuit affine exact à 43 portes qui aurait **exactement six arêtes profondes sur six droites distinctes**.
+
+Le [registre des preuves](certificats-projection-six-dix-termes.tsv) donne les verdicts et les empreintes pour 29 formules, dont 29 avec certificat DRAT vérifié. Chaque formule a été reproduite à l’identique. Les contrôles à budget relâché pour les modes `ten-points` et `ten-repeat` ont donné SAT. Le premier utilise deux ET exposés supplémentaires pour les deux étoiles des points sans centre. Le second utilise un terminal de support vide pour chaque droite profonde.
+
+Pour 2 + 2 + 1 + 1, les trois certificats du mode à droite répétée sont vérifiés. Il faut donc dix centres distincts dans cette répartition.
+
+Pour 2 + 1 + 1 + 1 + 1, les trois certificats du mode à droite répétée sont vérifiés. Il faut donc dix centres distincts dans cette répartition.
+
+Les autres possibilités pour six arêtes profondes restent à examiner, et le cas général à 43 portes reste ouvert.
