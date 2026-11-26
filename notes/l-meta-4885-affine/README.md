@@ -579,3 +579,42 @@ Les 29 essais et leurs empreintes figurent dans le [registre de projection](cert
 - Les autres arrangements des centres doivent encore être traités. Le seuil de 43 portes reste ouvert.
 
 Les 28 CNF des certificats antérieurs à cinq arêtes gardent exactement les mêmes empreintes après cette extension.
+
+### Au moins un OU projeté pour la répartition 2 + 2 + 2
+
+On reste dans le sous-cas avec neuf centres droites, deux ET internes et aucun ET exposé non productif. Pour la répartition 2 + 2 + 2, il faut **au moins un OU projeté** parmi les portes qui échappent au comptage des gardes et de la sortie.
+
+Supposons qu’il n’y en ait aucun. Chaque opérande de centre est alors son entrée primaire de droite. Après la suppression des ET exposés, chaque fil est une entrée primaire, un des deux ET internes, ou un OU déjà compté. Les OU exposés s’annulent. Un OU de garde s’aplatit en un OU d’entrées primaires de points et d’éventuels ET internes antérieurs. En particulier, le seul moyen de lire une entrée primaire droite dans un ET interne est de la prendre directement comme opérande.
+
+Appelons G puis H les ET internes dans l’ordre topologique. Sur les affectations formées d’un point et d’une droite, le profil de G est soit le même sur toutes les droites, soit nul en dehors d’une seule droite. Cela vient du fait que chaque opérande de G est une disjonction de points, une entrée droite ou zéro. Pour H, un opérande qui est directement une entrée droite donne aussi un profil nul en dehors d’une droite. Sinon, ses deux opérandes sont des fonctions du point et de G seulement. Le profil de H est constant d’une droite à l’autre si celui de G l’est. Si G est nul en dehors d’une droite L, le profil de H est constant en dehors de L, et son ensemble de points acceptés sur L contient l’ensemble de points accepté sur chacune des autres droites, par monotonie. Ainsi, pour chaque ET interne, les ensembles de points acceptés sur deux droites quelconques sont comparables par inclusion.
+
+Les trois droites portant des arêtes profondes doivent chacune lire au moins un ET interne dans leur garde. En effet, une garde qui n’en reçoit aucun ne peut que lire ses points peu profonds. Les ET internes ont un support vide. Les trois lectures épuisent donc les trois unités du budget des terminaux vides, et chacune des trois gardes reçoit exactement un des ET internes. L’un de ces deux ET doit servir deux droites. Sur chacune il doit fournir les deux points profonds. Les deux ensembles de points qu’il rend vrais sont comparables, et chacun doit être inclus dans les points de la droite correspondante pour que le circuit soit exact. Le plus petit des deux ensembles contient donc au moins deux points communs à ces droites. Le graphe affine exclut cette possibilité. Il faut donc au moins un OU projeté.
+
+L’option `AFFINE_PROJECTED_OR_MIN=1` impose cette contrainte dans la projection. Par défaut elle est désactivée, ce qui conserve les formules historiques. Elle doit être utilisée uniquement dans un sous-cas où la borne est démontrée.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+AFFINE_PROJECTED_OR_MIN=1 node projection-cinq.cjs orbites-six.json 2+2+2 projection-222.cnf 3 2 0
+kissat --time=60 projection-222.cnf projection-222.drat
+```
+
+On peut aussi fixer exactement un OU projeté avec `AFFINE_PROJECTED_OR_MIN=1 AFFINE_PROJECTED_OR_MAX=1`, ou examiner le cas complémentaire avec `AFFINE_PROJECTED_OR_MIN=2`. Ces deux recherches sont des sous-cas complémentaires de la formule précédente.
+
+### Rejouer les projections à orbite fixée
+
+Le script de vérification accepte maintenant `--six` pour la répartition 2 + 2 + 2, avec deux ET internes, aucun ET exposé non productif et un budget de trois.
+
+```sh
+python3 verifier-projection-cinq.py /chemin/kissat --six --jobs 8 --time 60 \
+  --checker /chemin/drat-trim --certify all
+```
+
+Sans argument `--orbits`, cette commande examine les 58 représentants. Pour ne rejouer que certains cas, passer leurs numéros du catalogue séparés par des virgules à `--orbits`. La numérotation commence à un.
+
+Les 48 représentants laissés ouverts par les lots de la recherche précédente ont chacun donné UNSAT à orbite fixée et leur trace DRAT a été vérifiée. Deux représentants ont nécessité un second essai, avec une limite de 85 secondes après les 22 secondes du premier passage. Les dix autres représentants étaient déjà exclus par les lots 2 et 8. La répartition 2 + 2 + 2 est donc entièrement exclue pour neuf centres droites. Avec les quatre orbites 3 + 3 exclues précédemment, cela laisse **4 662 des 4 724 orbites** dans ce sous-cas.
+
+Les options de projection, les limites, les numéros d’orbite et les empreintes figurent dans le [registre de cette recherche](certificats-projection-six-222.tsv). Les empreintes CNF des 48 formules à orbite fixée ont été contrôlées par régénération.
+
+Les deux formules groupées, avec exactement un OU projeté puis avec au moins deux, ont aussi donné UNSAT avec des traces DRAT vérifiées. Ces deux certificats et la preuve qui exclut zéro OU projeté forment une seconde vérification de l’exclusion des 58 orbites. La formule groupée initiale qui imposait seulement au moins un OU a atteint sa limite de temps.
+
+Le cas à 43 portes reste ouvert, notamment pour les autres répartitions et pour les circuits dont les centres diffèrent de ce sous-cas.

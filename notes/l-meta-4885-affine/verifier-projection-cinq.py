@@ -14,7 +14,7 @@ def parse_selection(text, available):
         return set(available)
     selected = {int(field) for field in text.split(",") if field}
     if not selected <= available:
-        raise ValueError("Selection includes an orbit outside the supported three patterns")
+        raise ValueError("Selection includes an orbit outside the supported patterns")
     return selected
 
 
@@ -22,8 +22,9 @@ def run_case(index, orbit, args, catalog):
     with tempfile.TemporaryDirectory(prefix="affine-cinq-") as directory:
         cnf = Path(directory) / "instance.cnf"
         proof = Path(directory) / "instance.drat"
+        settings = ["3", "2", "0"] if args.six else []
         generated = subprocess.run(
-            ["node", NOTES / "projection-cinq.cjs", catalog, str(index), cnf],
+            ["node", NOTES / "projection-cinq.cjs", catalog, str(index), cnf, *settings],
             check=True, capture_output=True, text=True,
         )
         shape = json.loads(generated.stdout)
@@ -46,8 +47,9 @@ def run_case(index, orbit, args, catalog):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Replay the five-edge affine SAT projection")
+    parser = argparse.ArgumentParser(description="Replay the five- or six-edge affine SAT projection")
     parser.add_argument("kissat", help="Kissat executable")
+    parser.add_argument("--six", action="store_true", help="Use the six-edge 2+2+2 profile")
     parser.add_argument("--orbits", default="all", help="Comma-separated orbit numbers, or all")
     parser.add_argument("--jobs", type=int, default=4, help="Number of concurrent instances")
     parser.add_argument("--time", type=int, default=15, help="Kissat time limit per instance")
@@ -56,14 +58,16 @@ def main():
     args = parser.parse_args()
     if args.jobs < 1 or args.time < 1:
         parser.error("--jobs and --time must be positive")
+    orbit_command = "six-deep-orbits" if args.six else "five-deep-orbits"
+    patterns = {"2+2+2"} if args.six else PATTERNS
     result = subprocess.run(
-        ["node", NOTES / "frontiere.cjs", "five-deep-orbits"],
+        ["node", NOTES / "frontiere.cjs", orbit_command],
         check=True, capture_output=True, text=True,
     )
     orbit_table = json.loads(result.stdout)
     available = {
         i: orbit for i, orbit in enumerate(orbit_table["representatives"], 1)
-        if orbit["pattern"] in PATTERNS
+        if orbit["pattern"] in patterns
     }
     selected = parse_selection(args.orbits, set(available))
     args.certified = parse_selection(args.certify, selected)

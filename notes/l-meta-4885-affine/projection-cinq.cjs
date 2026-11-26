@@ -156,6 +156,12 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode) {
   const shallow = shallowFlags.map(row => members.filter(neighbor => row[neighbor] !== -1));
   const slots = range(Math.max(4, hidden + budget)).map(() => ({ isAnd: cnf.fresh(), isExtraOr: cnf.fresh() }));
   const extraFlags = slots.map(slot => slot.isExtraOr);
+  const minimumExtraOr = Number(process.env.AFFINE_PROJECTED_OR_MIN ?? 0);
+  assert.ok(Number.isInteger(minimumExtraOr) && minimumExtraOr >= 0 && minimumExtraOr <= budget);
+  if (minimumExtraOr) cnf.atMost(extraFlags.map(flag => -flag), slots.length - minimumExtraOr);
+  const maximumExtraOr = Number(process.env.AFFINE_PROJECTED_OR_MAX ?? budget);
+  assert.ok(Number.isInteger(maximumExtraOr) && maximumExtraOr >= minimumExtraOr && maximumExtraOr <= budget);
+  if (maximumExtraOr < budget) cnf.atMost(extraFlags, maximumExtraOr);
   const andFlags = slots.map(slot => slot.isAnd);
   cnf.atMost(andFlags, hidden);
   cnf.atMost(andFlags.map(flag => -flag), slots.length - hidden);
