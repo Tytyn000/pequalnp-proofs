@@ -331,11 +331,16 @@ if(cmd==='relaxed-control'){
   }
   const deepEdgeCount=Number(process.env.AFFINE_MIN_DEEP_EDGES??(process.env.AFFINE_TWO_DEEP_EDGES==='1'?2:0));
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
-  if(depthEquality&&(deepEdgeCount!==3||s!==43||process.env.AFFINE_EDIT_BASE))
-    throw Error('Depth equality needs exactly three deep edges at 43 gates without fixed edit distance');
+  if(depthEquality&&(![3,4].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
+    throw Error('Depth equality needs three or four deep edges at 43 gates without fixed edit distance');
   const deepLinePattern=process.env.AFFINE_DEEP_LINE_PATTERN;
-  if(deepLinePattern&&(!depthEquality||!['two-plus-one','distinct'].includes(deepLinePattern)))
-    throw Error('Deep line pattern needs the equality case and two-plus-one or distinct');
+  if(deepLinePattern&&(!depthEquality||
+    !(deepEdgeCount===3?['two-plus-one','distinct']:['single']).includes(deepLinePattern)))
+    throw Error('Unsupported deep line pattern for the requested equality case');
+  const fixedLineEdges=deepLinePattern==='single'?edges.flatMap(([,line],i)=>line===half?[i]:[]):[];
+  if(deepLinePattern==='single'&&(fixedLineEdges.length!==4||
+    new Set(automorphisms().map(permutation=>permutation[half])).size!==lines.length))
+    throw Error('Fixing the deep line requires transitivity on all lines');
   if(deepEdgeCount){
     if(![2,3,4].includes(deepEdgeCount))throw Error('Expected two, three or four deep edge witnesses');
     if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
@@ -359,9 +364,10 @@ if(cmd==='relaxed-control'){
       }
       return shallow.at(-1);
     }
-    const chosen=Array.from({length:deepEdgeCount},()=>{
+    const chosen=Array.from({length:deepEdgeCount},(_,j)=>{
       const selection=edges.map(v);
       one(selection);
+      if(fixedLineEdges.length)add(selection[fixedLineEdges[j]]);
       const input=Array.from({length:n},v);
       for(const [j,edge] of edges.entries()){
         for(const [i,wire] of input.entries())add(-selection[j],edge.includes(i)?wire:-wire);
@@ -380,8 +386,7 @@ if(cmd==='relaxed-control'){
       const exposed=gates.map(v);
       add(exposed.at(-1));
       const inner=[];
-      let counts=Array(13).fill(-truth);
-      counts[0]=truth;
+
       for(const [j,g] of gates.entries()){
         const hidden=v();
         add(-hidden,g.type);add(-hidden,-exposed[j]);add(hidden,-g.type,exposed[j]);
@@ -398,17 +403,29 @@ if(cmd==='relaxed-control'){
           add(-exposed[j],...readers);
           for(const reader of readers)add(-reader,exposed[j]);
         }
-        const next=[truth];
-        for(let k=1;k<=12;k++){
-          const reached=v();
-          add(-counts[k],reached);add(-counts[k-1],-g.type,reached);
-          next.push(reached);
-        }
-        counts=next;
       }
-      one(inner);
-      add(-counts[12]);
-      if(deepLinePattern){
+      function atMost(wires,limit){
+        let counts=Array(limit+2).fill(-truth);
+        counts[0]=truth;
+        for(const wire of wires){
+          const next=[truth];
+          for(let k=1;k<=limit+1;k++){
+            const reached=v();
+            add(-counts[k],reached);add(-counts[k-1],-wire,reached);
+            next.push(reached);
+          }
+          counts=next;
+        }
+        add(-counts[limit+1]);
+      }
+      if(deepEdgeCount===3){
+        one(inner);
+      }else{
+        add(...inner);
+        atMost(inner,3);
+      }
+      atMost(gates.map(g=>g.type),deepEdgeCount+8);
+      if(deepLinePattern&&deepEdgeCount===3){
         const lineChoices=chosen.map(selection=>{
           const choices=lines.map(v);
           for(const [i,[,line]] of edges.entries())add(-selection[i],choices[line-half]);

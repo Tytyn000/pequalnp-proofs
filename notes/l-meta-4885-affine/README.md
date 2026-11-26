@@ -119,3 +119,32 @@ done
 ```
 
 Les trois essais ont donné UNKNOWN après 55 secondes chacun. L’existence d’un circuit à 43 portes reste ouverte. Les recherches de la section précédente sur exactement trois arêtes profondes sont conservées pour reproduire les essais antérieurs.
+
+## Cas de quatre arêtes profondes
+
+Avec exactement quatre arêtes profondes, m = 32. La borne m + t + h ≤ 43, avec t ≥ 8 et h ≥ 1, donne 8 ≤ t ≤ 10 et 1 ≤ h ≤ 11 − t. Le comptage initial mobilise au moins m + t − 1 portes, dont t ET. Les portes comptées sont donc au moins m − 1 OU et t ET. Le circuit entier contient ainsi au plus 43 − (32 − 1) = 12 ET.
+
+Il faut au moins huit centres distincts, puisqu’un centre couvre au plus quatre arêtes. Avec exactement huit centres distincts, les huit doivent être des droites et couvrent chacun les quatre incidences de leur droite. Les quatre arêtes profondes sont alors les quatre incidences de la neuvième droite. Cela vaut aussi quand plusieurs termes productifs ont le même centre. En particulier, si les quatre arêtes profondes occupent plusieurs droites, il y a au moins neuf centres et au plus deux ET internes.
+
+Avec neuf centres distincts, il y a au plus un centre point. Supposons qu’il y ait r centres points. Il reste r droites sans centre, dont au moins 4r − 4 arêtes sont acceptées par l’évaluation limitée. Seuls les r centres points peuvent fournir ces arêtes. Chacun a degré trois, d’où 4r − 4 ≤ 3r et r ≤ 4.
+
+- Pour r = 2, fournir les quatre arêtes requises obligerait les deux points à appartenir aux deux droites sans centre.
+- Pour r = 3, fournir les huit arêtes requises exigerait au moins deux droites sans centre qui contiennent chacune les trois points.
+- Pour r = 4, fournir les douze arêtes requises exigerait que chacun des quatre points appartienne à trois des quatre droites sans centre. Deux de ces points partageraient au moins deux droites.
+
+Cela contredit dans les trois cas l’absence de cycle de longueur quatre. Avec neuf centres distincts dont un point, la seule droite sans centre contient au moins trois des quatre arêtes profondes.
+
+Avec dix centres distincts, il y a entre un et trois centres points. En effet, pour r centres points, il reste r − 1 droites sans centre et il faut couvrir au moins 4r − 8 de leurs arêtes par les r points. La borne de degré 3r donne r ≤ 8. Si d est le nombre de ces points sur une droite sans centre, les paires de points qu’on y trouve ne peuvent figurer sur aucune autre droite. Or, pour tout entier d, C(d, 2) ≥ 3d − 6, avec égalité seulement pour d = 3 ou 4. La somme sur les droites sans centre donne donc au moins 6r − 18 paires, parmi les C(r, 2) disponibles. Pour r de 5 à 8, 6r − 18 > C(r, 2). Pour r = 4, l’égalité impose que chacune des trois droites contienne au moins trois des quatre points et qu’il y ait exactement huit incidences, ce qui est impossible. Il faut au moins un centre point, puisqu’il n’y a que neuf droites.
+
+Le générateur peut maintenant imposer exactement quatre arêtes profondes, au plus trois ET internes et au plus douze ET en tout. L’option `AFFINE_DEEP_LINE_PATTERN=single` fixe les quatre arêtes sur la première droite. Le générateur vérifie la transitivité des automorphismes sur les neuf droites avant de faire ce choix. Cette recherche particulière englobe le cas à huit centres distincts.
+
+```sh
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 node frontiere.cjs build affine43-exactement-quatre-general.cnf 43 197 ordered
+AFFINE_MIN_DEEP_EDGES=4 AFFINE_DEPTH_EQUALITY=1 AFFINE_DEEP_LINE_PATTERN=single node frontiere.cjs build affine43-exactement-quatre-single.cnf 43 197 ordered
+kissat --time=70 affine43-exactement-quatre-general.cnf
+kissat --time=70 affine43-exactement-quatre-single.cnf
+```
+
+Pour régénérer à l’identique les anciens encodages d’exactement trois arêtes profondes, utiliser le générateur du commit `3636d26`.
+
+Les deux recherches ont rendu UNKNOWN après 70 secondes chacune. En portant temporairement le seuil à 45 portes, le mode sur une seule droite a accepté le témoin exact à 45 portes dont quatre arêtes profondes sont sur la première droite. Il a rejeté le témoin exact à 44 portes, qui n’a aucune arête profonde.
