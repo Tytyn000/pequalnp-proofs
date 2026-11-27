@@ -814,4 +814,4 @@ Le [registre des projections](verdicts-projection-six-3111.tsv) distingue les ve
 
 Un essai supplémentaire à neuf termes avec un ET interne, un centre calculé et un OU projeté en amont a donné UNKNOWN après 90 secondes. L’exclusion de ce profil repose sur le certificat de la formule plus générale qui impose seulement un centre calculé.
 
-Les douze certificats des profils à dix termes sont vérifiés. Si un circuit à 43 portes réalise la répartition 3 + 1 + 1 + 1, il doit donc avoir neuf termes productifs et deux ET internes, sans ET exposé non productif. Kissat a rendu UNSAT aussi dans ce dernier profil, dont la trace n’était pas encore vérifiée à la publication.
+Les douze certificats des profils à dix termes sont vérifiés. Les six certificats des profils à neuf termes sont aussi vérifiés. La répartition entière 3 + 1 + 1 + 1 est donc exclue à 43 portes. Un circuit exact à 43 portes avec exactement six arêtes profondes devrait les répartir sur au plus trois droites. Les répartitions encore à traiter sont 4 + 2, 4 + 1 + 1, 3 + 3, 3 + 2 + 1 et 2 + 2 + 2, après prise en compte des exclusions déjà démontrées pour certains choix de centres.
