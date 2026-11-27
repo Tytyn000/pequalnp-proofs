@@ -20,9 +20,11 @@ const tenPointCounts = new Map([
 const sixDistinctLines = '1+1+1+1+1+1';
 const fiveDistinctLines = '2+1+1+1+1';
 const fourDistinctLines = '2+2+1+1';
+const tripleWithSingles = '3+1+1+1';
 const prefilteredPointCounts = new Map([
   [fiveDistinctLines, [1, 2, 6, 10]],
   [fourDistinctLines, [1, 2, 3, 4, 5]],
+  [tripleWithSingles, [1, 2, 3]],
 ]);
 const explicitTenLayout = process.env.AFFINE_TEN_EXPLICIT_LAYOUT === '1';
 
@@ -150,15 +152,17 @@ function compatibleCenterSets(rows, pointCountRequired) {
 
 function build(representatives, budget, hidden, unproductive, symbolic, mode, compatible) {
   const mixed = mode !== 'lines';
-  const tenTerms = tenPointCounts.has(mode);
-  const repeated = mode === 'repeat' || mode === 'ten-repeat';
+  const repeatPoint = mode === 'ten-repeat-one';
+  const nineWithPoint = mode === 'nine-one' || repeatPoint;
+  const tenTerms = tenPointCounts.has(mode) || repeatPoint;
+  const repeated = mode === 'repeat' || mode === 'ten-repeat' || repeatPoint;
   const termCount = tenTerms ? 10 : mode === 'eight' ? 8 : 9;
   assert.ok(representatives.length);
   assert.ok(Number.isInteger(budget) && budget >= 0);
   assert.ok([1, 2, 3].includes(hidden));
   assert.ok([0, 1, 2].includes(unproductive));
   const edgeCount = representatives[0].indices.length;
-  assert.ok(tenTerms ? edgeCount === 6 : edgeCount === 5 || (edgeCount === 6 && !mixed));
+  assert.ok(tenTerms || nineWithPoint ? edgeCount === 6 : edgeCount === 5 || (edgeCount === 6 && !mixed));
   for (const { indices } of representatives) {
     assert.equal(indices.length, edgeCount);
     assert.equal(new Set(indices).size, edgeCount);
@@ -176,11 +180,19 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
     orbitFlags.push(...representatives.map(({ indices }) => cnf.and(indices.map(i => isDeep[i]))));
     cnf.add(...orbitFlags);
   }
-  const vertices = repeated ? range(inputCount + lineCount) : mixed ? inputs : lines;
+  const copies = repeatPoint ? inputCount : lineCount;
+  const vertices = repeated ? range(inputCount + copies) : mixed ? inputs : lines;
   const members = mixed ? inputs : points;
-  const vertexOf = center => center >= inputCount ? center - lineCount : mixed ? center : pointCount + center;
-  const layouts = representatives.map(row => prescribedTenCenters(row, mode));
-  const usesLayouts = explicitTenLayout && layouts.every(layout => layout?.length);
+  const vertexOf = center => center >= inputCount ? center - copies : mixed ? center : pointCount + center;
+  const layouts = representatives.map(row => {
+    if (!nineWithPoint) return prescribedTenCenters(row, mode);
+    const offset = lines.find(l => row.indices.filter(i => edges[i][1] === pointCount + l).length === 3);
+    assert.notEqual(offset, undefined);
+    const line = pointCount + offset;
+    const [point] = edges.find(([, l], i) => l === line && !row.indices.includes(i));
+    return [point, ...lines.map(l => pointCount + l).filter(l => l !== line)];
+  });
+  const usesLayouts = nineWithPoint || (explicitTenLayout && layouts.every(layout => layout?.length));
   const centerActive = vertices.map(() => mixed ? cnf.fresh() : 1);
   if (compatible) {
     const witnesses = new Map();
@@ -195,21 +207,24 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
   if (usesLayouts) for (const [j, layout] of layouts.entries()) {
     const choices = new Set(layout);
     const selected = representatives[j].indices.map(i => -isDeep[i]);
-    for (const [vertex, flag] of centerActive.entries()) cnf.add(...selected, choices.has(vertex) ? flag : -flag);
+    for (const [vertex, flag] of (nineWithPoint ? centerActive.slice(0, inputCount) : centerActive).entries())
+      cnf.add(...selected, choices.has(vertex) ? flag : -flag);
   }
   if (mixed) {
     cnf.atMost(centerActive, termCount);
     cnf.atMost(centerActive.map(flag => -flag), vertices.length - termCount);
     const pointCenters = centerActive.slice(0, pointCount);
-    if (mode === 'mixed') {
-      cnf.add(...pointCenters);
-      cnf.atMost(pointCenters, 2);
-    } else if (tenTerms && !repeated) {
-      const count = tenPointCounts.get(mode);
-      cnf.atMost(pointCenters, count);
-      cnf.atMost(pointCenters.map(flag => -flag), pointCount - count);
-    } else {
-      for (const flag of pointCenters) cnf.add(-flag);
+    if (!nineWithPoint) {
+      if (mode === 'mixed') {
+        cnf.add(...pointCenters);
+        cnf.atMost(pointCenters, 2);
+      } else if (tenTerms && !repeated) {
+        const count = tenPointCounts.get(mode);
+        cnf.atMost(pointCenters, count);
+        cnf.atMost(pointCenters.map(flag => -flag), pointCount - count);
+      } else {
+        for (const flag of pointCenters) cnf.add(-flag);
+      }
     }
     if (repeated) {
       cnf.one(centerActive.slice(inputCount));
@@ -232,7 +247,8 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
   if (mixed) {
     for (const [i, [point, line]] of edges.entries()) {
       cnf.add(isDeep[i], shallowFlags[point][line], shallowFlags[line][point],
-        repeated ? shallowFlags[line + lineCount][point] : -1);
+        repeated ? shallowFlags[line + copies][point] : -1,
+        ...(repeatPoint ? [shallowFlags[point + copies][line]] : []));
     }
     for (const [center, flag] of centerActive.entries()) cnf.add(-flag, ...shallowFlags[center]);
   }
@@ -259,6 +275,11 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
     cnf.one(choices);
     return choices;
   });
+
+  if (process.env.AFFINE_PROJECTED_COMPUTED_CENTER === '1') {
+    assert.ok(nineWithPoint && unproductive === 0);
+    cnf.add(...centers.flatMap(choices => choices.slice(1)));
+  }
 
   function newOperand(slot) {
     const direct = range(1 + inputCount + slot).map(() => cnf.fresh());
@@ -325,6 +346,10 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
     cnf.add(...[0, 1].map(side => cnf.and(singletonValues.map(row => -row.extraValues[i][side]))));
   }
   const empty = slots.map((_, slot) => cnf.and(singletonRows.map(row => -row[slot])));
+  if (process.env.AFFINE_PROJECTED_UPSTREAM_OR === '1') {
+    assert.ok(hidden === 1 && representatives.every(row => row.pattern === tripleWithSingles));
+    for (const [i, flag] of andFlags.entries()) cnf.add(-flag, ...extraFlags.slice(0, i));
+  }
   const charges = [...extraFlags];
   for (const [line, shallowPoints] of shallow.entries()) {
     for (const [slot, use] of guardUses[line].entries()) {
@@ -382,7 +407,7 @@ function build(representatives, budget, hidden, unproductive, symbolic, mode, co
 const [catalog, selection, filename, budgetArg = '2', hiddenArg = '2', unproductiveArg = '0', centerMode = 'lines'] = process.argv.slice(2);
 const symbolic = selection === 'all' || [...patterns, ...additionalPatterns, ...sixPatterns].includes(selection);
 if (!filename || (!symbolic && !/^\d+$/.test(selection))) {
-  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat|ten-repeat|ten-one|ten-two|ten-three|ten-four|ten-five|ten-six|ten-nine|ten-points]');
+  throw Error('Usage: node projection-cinq.cjs <orbits.json> <orbit number|all|partition> <output.cnf> [budget] [internal ANDs] [unproductive AND] [lines|mixed|eight|repeat|ten-repeat|ten-one|ten-two|ten-three|ten-four|ten-five|ten-six|ten-nine|ten-points|nine-one|ten-repeat-one]');
 }
 const { representatives } = JSON.parse(fs.readFileSync(catalog, 'utf8'));
 const group = representatives[0]?.indices.length === 6 ? sixPatterns : patterns;
@@ -409,8 +434,8 @@ if (!allowed.length) throw Error('No orbit matches the required center configura
 const budget = Number(budgetArg);
 const hidden = Number(hiddenArg);
 const unproductive = Number(unproductiveArg);
-assert.ok(['lines', 'mixed', 'eight', 'repeat'].includes(centerMode) || tenPointCounts.has(centerMode));
-const supported = centerMode === 'ten-repeat' ? [sixDistinctLines, '2+2+1+1', fiveDistinctLines] :
+assert.ok(['lines', 'mixed', 'eight', 'repeat', 'nine-one', 'ten-repeat-one'].includes(centerMode) || tenPointCounts.has(centerMode));
+const supported = ['nine-one', 'ten-repeat-one'].includes(centerMode) ? [tripleWithSingles] : centerMode === 'ten-repeat' ? [sixDistinctLines, '2+2+1+1', fiveDistinctLines] :
   tenPointCounts.has(centerMode) ? [sixDistinctLines] : centerMode === 'mixed' ? additionalPatterns : ['4+1'];
 if (!canPrefilter && centerMode !== 'lines' && !allowed.every(row => supported.includes(row.pattern))) {
   throw Error('Unsupported representative for this center mode');

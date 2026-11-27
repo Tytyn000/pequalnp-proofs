@@ -313,6 +313,8 @@ if(cmd==='relaxed-control'){
   fs.writeFileSync(path+'.json',JSON.stringify(data.gates)+'\n');
   fs.writeFileSync(path+'.samples.json',JSON.stringify(data.samples)+'\n');
   console.log(JSON.stringify({actualGates:data.actualGates,samples:data.samples,...test(data.gates)}));
+} else if(cmd==='boundary-masks'){
+  console.log(JSON.stringify({positives:pos,negatives:neg}));
 } else if(cmd==='failures'){
   const gates=JSON.parse(fs.readFileSync(args[1],'utf8'));
   const bad=failures(gates);
@@ -394,6 +396,9 @@ if(cmd==='relaxed-control'){
     for(let i=0;i<a.length;i++)for(let k=0;k<i;k++)add(-a[i],-b[k]);
     gates.push({type,a,b,ap,bp});
   }
+  const refinement=process.env.AFFINE_REFINEMENT==='1';
+  if(refinement&&(!process.env.AFFINE_NEG_SAMPLES||!['plain','ordered'].includes(mode)||count!==neg.length))
+    throw Error('Refinement needs explicit negative samples in plain or ordered mode');
   const deepEdgeCount=Number(process.env.AFFINE_MIN_DEEP_EDGES??(process.env.AFFINE_TWO_DEEP_EDGES==='1'?2:0));
   const depthEquality=process.env.AFFINE_DEPTH_EQUALITY==='1';
   if(depthEquality&&(![3,4,5].includes(deepEdgeCount)||s!==43||process.env.AFFINE_EDIT_BASE))
@@ -442,7 +447,7 @@ if(cmd==='relaxed-control'){
     throw Error('Fixing the deep line requires transitivity on all lines');
   if(deepEdgeCount){
     if(![2,3,4,5,6].includes(deepEdgeCount))throw Error('Expected two to six deep edge witnesses');
-    if(n!==21||edges.length!==36||s>43||count!==neg.length||process.env.AFFINE_NEG_SAMPLES)
+    if(n!==21||edges.length!==36||s>43||count!==neg.length||(!refinement&&process.env.AFFINE_NEG_SAMPLES))
       throw Error('Depth condition needs the exact affine instance at at most 43 gates');
     function shallowAccepts(inputs){
       const orOnly=[...inputs], shallow=[...inputs];
@@ -1031,7 +1036,7 @@ if(cmd==='relaxed-control'){
   }
   const compactRows=process.env.AFFINE_COMPACT_ROWS==='1';
   if(compactRows&&(!['plain','ordered'].includes(mode)||count!==neg.length||
-    process.env.AFFINE_NEG_SAMPLES))
+    (!refinement&&process.env.AFFINE_NEG_SAMPLES)))
     throw Error('Compact rows need the full exact boundary in plain or ordered mode');
   function encodeCompactRow(values,positive){
     for(const g of gates){

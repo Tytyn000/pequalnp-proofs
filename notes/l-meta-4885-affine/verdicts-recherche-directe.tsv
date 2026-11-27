@@ -1,0 +1,7 @@
+recherche	iteration	negatifs	profondeur_min	limite_s	graine	clauses	verdict	negatifs_violés_hors_échantillon
+frontiere-complete	1	197	6	190	17	1026999	UNKNOWN	-
+raffinement-24	1	24	6	65	23	379633	UNKNOWN	-
+raffinement-couverture	1	14	6	70	5	342213	UNKNOWN	-
+raffinement-sans-profondeur	1	14	0	50	5	247005	UNKNOWN	-
+raffinement-4	1	4	6	55	9	304793	SATISFIABLE	193
+raffinement-4	2	197	6	55	9	1026999	UNKNOWN	-

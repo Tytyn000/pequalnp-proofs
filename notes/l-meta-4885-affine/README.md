@@ -750,3 +750,68 @@ Pour la répartition 3 + 1 + 1 + 1, le même catalogue donne 324 orbites avec un
 Les 27 formules couvrant les neuf modes compatibles du tableau et les trois couples (h, u) sont insatisfiables. Chacune a un certificat DRAT vérifié. Le [registre des vérifications](certificats-projection-six-centres-distincts.tsv) indique le mode, le budget, le nombre de représentants et les empreintes. Toutes les formules du registre utilisent `AFFINE_PROJECTED_CANONICAL=1`. Les 29 formules de la recherche précédente gardent leurs empreintes.
 
 Avec les exclusions antérieures des neuf termes et des centres répétés, **les répartitions 2 + 2 + 1 + 1 et 2 + 1 + 1 + 1 + 1 sont exclues** à 43 portes. Un circuit qui aurait exactement six arêtes profondes devrait les répartir sur au plus quatre droites. Sur quatre droites, seule la répartition 3 + 1 + 1 + 1 reste à examiner. Le seuil de 43 portes demeure ouvert.
+
+### Répartition 3 + 1 + 1 + 1
+
+Les 324 orbites doivent être réparties entre trois types de circuits. Avec neuf termes productifs, les neuf centres sont distincts. Le centre point est l’unique voisin peu profond de la droite triple, et les huit autres droites sont les autres centres. Avec dix termes et neuf centres distincts, cette même configuration est utilisée, mais un des neuf centres peut servir deux termes. Avec dix centres distincts, un, deux ou trois peuvent être des points, ce qui conserve respectivement 324, 324 et 159 orbites dans le préfiltre d’incidence.
+
+Le générateur de projection utilise les modes `nine-one`, `ten-repeat-one`, `ten-one`, `ten-two` et `ten-three`. Dans le mode avec une répétition, la copie peut désigner une droite ou le point, et les deux gardes sont choisies séparément. Un terminal de support vide commun aux deux gardes n’est compté qu’une fois. La formule impose un budget de 14 − t − h − 2u, où t compte les ET productifs, h les ET internes et u les ET exposés non productifs.
+
+| Termes productifs | Couples (h, u) |
+| --- | --- |
+| 9 | (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (3, 0) |
+| 10 | (1, 0), (1, 1), (2, 0) |
+
+Quand u = 0 et que le circuit a neuf centres distincts, il faut au moins un centre calculé. En effet, chacune des trois arêtes profondes de la droite triple a ses deux extrémités hors de l’ensemble des centres. Sur cette affectation, si tous les centres étaient des entrées primaires, aucun terme de sortie ne pourrait être vrai. On peut imposer cette condition avec `AFFINE_PROJECTED_COMPUTED_CENTER=1` pour les modes `nine-one` et `ten-repeat-one`.
+
+```sh
+node frontiere.cjs six-deep-orbits > orbites-six.json
+AFFINE_PROJECTED_CANONICAL=1 node projection-cinq.cjs orbites-six.json \
+  3+1+1+1 projection-3111.cnf 2 2 0 ten-repeat-one
+kissat --time=240 projection-3111.cnf projection-3111.drat
+drat-trim projection-3111.cnf projection-3111.drat
+```
+
+### Recherche globale par ajout de contre-exemples
+
+Les projections par répartition ne couvrent que les circuits à exactement six arêtes profondes. La recherche directe à 43 portes repart de la frontière entière de 36 positifs minimaux et 197 maximaux négatifs, ainsi que de la condition nécessaire d’au moins six arêtes profondes. Elle ne fixe ni le nombre exact d’arêtes profondes ni leur répartition.
+
+Le script `raffiner-affine.py` utilise cette même formulation avec un sous-ensemble de maximaux négatifs. Son échantillon initial couvre chaque paire de sommets qui n’est pas une incidence. Chaque modèle trouvé est décodé puis testé sur la frontière entière. Les maximaux négatifs violés sont ajoutés à l’itération suivante. Un candidat ne devient témoin que s’il passe toute la frontière. Cette recherche peut aussi omettre la contrainte de profondeur avec `--deep 0`, ce qui relâche la formule. Le contrôle avec le témoin fixé à 44 portes a donné SAT et zéro erreur sur la frontière entière.
+
+```sh
+python3 raffiner-affine.py /chemin/kissat sortie-raffinement --initial 24 --time 65 --rounds 4 --seed 23
+```
+
+Le dossier de sortie neuf contient les échantillons, les formules et les éventuels modèles. Un verdict UNKNOWN signifie que l’itération a atteint sa limite de temps. Lorsque Kissat rend UNSAT, le script le signale, mais ne produit pas lui-même de certificat.
+
+Les contrôles de la projection 3 + 1 + 1 + 1 ont donné SAT pour neuf centres distincts et pour la répétition du centre point, avec un budget relâché. Les 27 empreintes des formules des deux répartitions précédentes sont inchangées.
+
+### Comparaison des recherches directes
+
+Le solveur sur la frontière complète, avec au moins six arêtes profondes et la graine 17, a donné UNKNOWN après 190 secondes. Les premiers essais par raffinement avec 24 et 14 négatifs ont aussi rendu UNKNOWN dès la première itération. L’essai à 14 négatifs sans contrainte de profondeur a eu le même résultat.
+
+En désactivant la couverture initiale des paires avec `--skip-pair-cover`, le solveur a produit un modèle pour les 36 positifs et quatre négatifs. Après décodage, ce modèle échouait sur tous les 193 autres maximaux négatifs. L’ajout de ces contre-exemples est donc revenu directement à la frontière entière. L’itération suivante a donné UNKNOWN. Cette comparaison ne fournit ni un circuit exact à 43 portes ni une exclusion globale. La recherche par répartition a produit des exclusions certifiables là où ces recherches directes n’ont pas convergé.
+
+```sh
+AFFINE_MIN_DEEP_EDGES=6 AFFINE_COMPACT_ROWS=1 \
+  node frontiere.cjs build global-43.cnf 43 197 ordered
+kissat --time=190 --seed=17 global-43.cnf
+python3 raffiner-affine.py /chemin/kissat sortie-quatre --initial 4 --time 55 --rounds 2 \
+  --seed 9 --skip-pair-cover
+```
+
+### Un seul ET interne exige un OU en amont
+
+Dans 3 + 1 + 1 + 1, un circuit à un seul ET interne G doit avoir au moins un OU projeté en amont de G. En effet, G est le premier ET vrai sur chacune des six arêtes profondes. Sans OU projeté en amont, chacun de ses deux opérandes a un support inclus dans une seule part du graphe. Une garde de points comptée contient au plus un des trois points profonds de la droite triple. Si son centre est cette droite, elle ne contient aucun de ces points. Si son centre est une autre droite, elle partage au plus un point avec la droite triple. Une entrée primaire point ne suffit pas non plus. Les deux opérandes de G doivent donc avoir des supports de droites. Chacun doit contenir toutes les droites profondes.
+
+Ainsi G serait vrai sur chaque singleton d’une droite profonde. Sur une paire profonde (q, L), le premier ET exposé vrai doit recevoir G par un chemin de OU. Comme il rejette le singleton L, son autre opérande doit recevoir le point q sans passer par G. Les ET exposés antérieurs sont faux par choix de ce terme. Le circuit accepterait alors (q, L') pour toute droite profonde L', ce qui est impossible puisque les points ont degré trois et qu’il y a quatre droites profondes. La contrainte nécessaire est encodée par `AFFINE_PROJECTED_UPSTREAM_OR=1`, qui exige une porte OU projetée avant G dans l’ordre topologique.
+
+### Résultats vérifiés pour 3 + 1 + 1 + 1
+
+Les certificats excluent tous les cas avec au moins un ET exposé non productif. Ils excluent aussi trois ET internes avec neuf termes productifs. Avec neuf termes, la formule imposant un centre calculé a un certificat vérifié pour un seul ET interne. Un circuit de cette répartition à neuf termes devrait donc avoir exactement deux ET internes et aucun ET exposé non productif.
+
+Le [registre des projections](verdicts-projection-six-3111.tsv) distingue les verdicts du solveur des traces effectivement vérifiées. Le [registre des recherches directes](verdicts-recherche-directe.tsv) donne les limites, graines et nombres de clauses. L’interruption initiale liée au dossier temporaire plein a conduit à régénérer les projections avant les essais du registre.
+
+Un essai supplémentaire à neuf termes avec un ET interne, un centre calculé et un OU projeté en amont a donné UNKNOWN après 90 secondes. L’exclusion de ce profil repose sur le certificat de la formule plus générale qui impose seulement un centre calculé.
+
+Les douze certificats des profils à dix termes sont vérifiés. Si un circuit à 43 portes réalise la répartition 3 + 1 + 1 + 1, il doit donc avoir neuf termes productifs et deux ET internes, sans ET exposé non productif. Kissat a rendu UNSAT aussi dans ce dernier profil, dont la trace n’était pas encore vérifiée à la publication.
